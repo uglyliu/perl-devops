@@ -1,0 +1,70 @@
+%= javascript '/js/custom/tables.js'
+<div class="pageheader notab">
+    <h1 class="pagetitle"> <a href="/product">产品线列表</a> / <%= $productName %> </h1>
+    <span class="pagedesc"><%= $productDesc %></span>            
+</div>
+<div id="contentwrapper" class="contentwrapper">
+    <table cellpadding="0" cellspacing="0" border="0" class="stdtable" id="dyntable2">
+        <colgroup>
+            <col class="con0" style="width: 4%" />
+            <col class="con1" />
+            <col class="con0" />
+            <col class="con1" />
+            <col class="con0" />
+        </colgroup>
+        <!--表头-->
+        <thead>
+            <tr>
+                <th class="head0 nosort"></th>
+                <th class="head0">版本</th>
+                <th class="head1">负责人</th>
+                <th class="head1">当前状态</th>
+                <th class="head0">开始时间</th>
+                <th class="head1">结束时间</th>
+                <th class="head0">操作</th>
+            </tr>
+        </thead>
+        <!--内容-->
+        <tbody>
+            <tr class="gradeX">
+              <td align="center"><span class="center"><input type="checkbox" /></span></td>
+                <td>v2.1.0</td>
+                <td>赵敏</td>
+                <td>开发中</td>
+                <td>2018-02-15</td>
+                <td class="center">2018-04-01</td> 
+                <td class="center">
+                    <a href="#" onclick="productDetail(1)">详情</a> &nbsp; 
+                    <a href="" class="delete">wiki需求</a> &nbsp; 
+                    <a href="" class="delete">环境配置</a>
+                </td>
+            </tr>
+            <tr class="gradeC">
+              <td align="center"><span class="center"><input type="checkbox"/></span></td>
+                <td>v2.0.0</td>
+                <td>张无忌</td>
+                <td>测试中(uat环境)</td>
+                <td>2018-02-10</td>
+                <td class="center">2018-03-10</td> 
+                <td class="center">
+                    <a href="#" onclick="productDetail(1)">详情</a> &nbsp; 
+                    <a href="" class="delete">wiki需求</a> &nbsp; 
+                    <a href="" class="delete">环境配置</a>
+                </td>
+            </tr>
+            <tr class="gradeA">
+              <td align="center"><span class="center"><input type="checkbox" /></span></td>
+                <td>v1.0.0</td>
+                <td>张三丰</td>
+                <td>已上线</td>
+                <td>2018-01-01</td>
+                <td class="center">2018-02-01</td> 
+                <td class="center">
+                    <a href="#" onclick="productDetail(1)">详情</a> &nbsp; 
+                    <a href="" class="delete">wiki需求</a> &nbsp; 
+                    <a href="" class="delete">环境配置</a>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
