@@ -5,9 +5,8 @@
 
 ![](img/detail.png)
 
-
+### 安装postgresql
 ```shell
-### https://blog.csdn.net/wlwlwlwl015/article/details/52399739
 $ wget https://download.postgresql.org/pub/repos/yum/10/redhat/rhel-7-x86_64/pgdg-centos10-10-2.noarch.rpm
 $ rpm -ivh pgdg-centos10-10-2.noarch.rpm
 $ yum install postgresql10-server postgresql10-contrib postgresql-devel
@@ -35,13 +34,10 @@ $ ./postgresql-10-setup initdb
 
 $ su - postgres
 psql
-select version();
-#查看当前数据库
-\l
-alter user postgres with password '123456';
+postgres=# alter user postgres with password '123456';
 ```
 
-
+### 安装Perl依赖
 ```perl
 $ sudo yum -y install perl-CPAN
 $ curl -L https://cpanmin.us | perl - -M https://cpan.metacpan.org -n Mojolicious Mojo::Pg Minion Digest::MD5
