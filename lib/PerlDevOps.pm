@@ -1,5 +1,7 @@
 package PerlDevOps;
 use Mojo::Base 'Mojolicious';
+use PerlDevOps::Model::Product;
+use Mojo::Pg;
 
 # This method will run once at server start
 sub startup {
@@ -7,6 +9,15 @@ sub startup {
 
   # Load configuration from hash returned by "my_app.conf"
   my $config = $self->plugin('Config');
+  
+  $self->secrets($self->config('secrets'));
+	
+  # Model
+  $self->helper(pg => sub { state $pg = Mojo::Pg->new(shift->config('pg')) });
+  $self->helper(
+    product => sub { state $product = PerlDevOps::Model::Product->new(pg => shift->pg) }
+  );
+
 
   # Documentation browser under "/perldoc"
   $self->plugin('PODRenderer') if $config->{perldoc};

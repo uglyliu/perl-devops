@@ -6,8 +6,45 @@
 ![](img/detail.png)
 
 
+```shell
+### https://blog.csdn.net/wlwlwlwl015/article/details/52399739
+$ wget https://download.postgresql.org/pub/repos/yum/10/redhat/rhel-7-x86_64/pgdg-centos10-10-2.noarch.rpm
+$ rpm -ivh pgdg-centos10-10-2.noarch.rpm
+$ yum install postgresql10-server postgresql10-contrib postgresql-devel
+
+$ vim /etc/profile
+  export POSTGRES_HOME=/usr/pgsql-10
+$ source /etc/profile
+
+$ mkdir /usr/pgsql-10/include
+
+#支持远程客户端连接
+$ cd /var/lib/pgsql/10/data/
+$ vim postgresql.conf
+listen_addresses = '*'
+#添加策略
+$ vim pg_hba.conf
+host    all             all             远程ip/24       md5
+
+$ systemctl restart postgresql-10.service
+$ systemctl enable postgresql-10.service
+
+#初始化数据库
+$ cd /usr/pgsql-10/bin/
+$ ./postgresql-10-setup initdb
+
+$ su - postgres
+psql
+select version();
+#查看当前数据库
+\l
+alter user postgres with password '123456';
+```
+
+
 ```perl
-$ curl -L https://cpanmin.us | perl - -M https://cpan.metacpan.org -n Mojolicious
+$ sudo yum -y install perl-CPAN
+$ curl -L https://cpanmin.us | perl - -M https://cpan.metacpan.org -n Mojolicious Mojo::Pg Minion Digest::MD5
 
 $ morbo -l http://*:8080 -w ./ script/perl_dev_ops
 ```
