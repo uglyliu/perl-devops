@@ -5,7 +5,7 @@
 
 ![](img/detail.png)
 
-### 安装postgresql
+### 安装PostgreSQL
 ```shell
 $ wget https://download.postgresql.org/pub/repos/yum/10/redhat/rhel-7-x86_64/pgdg-centos10-10-2.noarch.rpm
 $ rpm -ivh pgdg-centos10-10-2.noarch.rpm

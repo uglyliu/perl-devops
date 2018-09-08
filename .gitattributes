@@ -1,0 +1,3 @@
+*.js linguist-language=Perl
+*.css linguist-language=Perl
+*.html linguist-language=Perl
