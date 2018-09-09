@@ -6,43 +6,52 @@ use Mojo::Base 'Mojolicious::Controller';
 sub index {
   my $self = shift;
   # Render template "product/index.html.ep" with message
-  
-  $self->stash(listData => [1,2,3,4,5,6]);
-  $self->render();
+  # $self->stash(listData => $self->product->all());
+  $self->render(listData => $self->product->all());
 }
 
-#产品线详情页
-sub detail{
+#添加产品线页面
+sub addPage{
 	my $self = shift;
-	my $productId = $self -> param("id");
-	
-	$self->product->find($productId);
-	#$self->render(product => $self->product->find($self->param('id'));
-  	$self->render(productName => "支付系统",productDesc => "xxx支付系统.....");
+
+	$self->render(product => {});
+}
+
+#添加产品线
+sub add{
+  my $self = shift;
+  my $v = $self->_validation;
+  return $self->render(action => '/product/addPage', product => {}) if $v->has_error;
+
+  my $param = $v->output;
+  $param -> {productStatus} = "新创建";
+  $param -> {createDate} = localtime();
+  $param -> {createUser} = "admin";
+  
+  my $id = $self->product->add($param);
+  $self->redirect_to('/product');
 }
 
 
+sub editPage {
+  my $self = shift;
+  $self->render(product => $self->product->find($self->param("id")));
+}
 
 
+sub edit {
+ my $self = shift;
+ my $v = $self->_validation;
+ return $self->render(action => '/product/editPage', post => {}) if $v->has_error;
+ my $id = $self->param('id');
+ my $param = $v->output;
 
-#sub addProduct {
-#  my $self = shift;
-#
-#  my $v = $self->_validation;
-#  return $self->render(action => 'create', post => {}) if $v->has_error;
-#
-#  my $id = $self->posts->add($v->output);
-#  $self->redirect_to('show_post', id => $id);
-#}
-#
-#sub updateProduct {
-#  my $self = shift;
-#  my $v = $self->_validation;
-#  return $self->render(action => 'edit', post => {}) if $v->has_error;
-#  my $id = $self->param('id');
-#  $self->posts->save($id, $v->output);
-#  $self->redirect_to('show_post', id => $id);
-#}
+ $param -> {updateDate} = localtime();
+ $param -> {updateUser} = "admin";
+
+ $self->product->save($id, $v->output);
+ $self->redirect_to('/product');
+}
 
 
 sub _validation {
@@ -50,8 +59,16 @@ sub _validation {
 
   my $v = $self->validation;
   $v->required('productName');
+  $v->required('productWiki');
   $v->required('productManager');
-
+  $v->required('productContact');
+  $v->required('devManager');
+  $v->required('devContact');
+  $v->required('qaManager');
+  $v->required('qaContact');
+  $v->required('safeManager');
+  $v->required('safeContact');
+  $v->required('productDesc');
   return $v;
 }
 

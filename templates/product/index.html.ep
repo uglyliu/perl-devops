@@ -10,12 +10,20 @@
 %= javascript '/js/plugins/jquery-1.7.min.js'
 %= javascript '/js/plugins/jquery-ui-1.8.16.custom.min.js'
 %= javascript '/js/plugins/jquery.cookie.js'
-
 %= javascript '/js/plugins/jquery.dataTables.min.js'
 %= javascript '/js/plugins/jquery.uniform.min.js'
+%= javascript '/js/plugins/jquery.validate.min.js'
+
+%= javascript '/js/plugins/jquery.tagsinput.min.js'
+%= javascript '/js/plugins/ui.spinner.min.js'
+%= javascript '/js/plugins/charCount.js'
+%= javascript '/js/plugins/chosen.jquery.min.js'
+
+
 %= javascript '/js/custom/general.js'
 %= javascript '/js/custom/tables.js'
 %= javascript '/js/custom.js'
+
 
 
 </head>
@@ -27,14 +35,10 @@
 	<div class="vernav2 iconmenu">
     	<ul>
         	<li>
-                <a href="#formsub" class="editor">产品线</a>
+                <a href="#formsub" class="editor">产品线管理</a>
                 <span class="arrow"></span>
                 <ul id="formsub">
-                    <li><a href="forms.html">支付系统</a></li>
-                    <li><a href="wizard.html">财务系统</a></li>
-                    <li><a href="editor.html">领券系统</a></li>
-                    <li><a href="editor.html">发券系统</a></li>
-                    <li><a href="editor.html">商品系统</a></li>
+                    <li><a href="#" onclick="productAddPage()">新增产品线</a></li>
                 </ul>
             </li>
         </ul>
