@@ -7,8 +7,6 @@ use Mojo::Base 'Mojolicious::Controller';
 sub index{
 	my $self = shift;
 	my $productId = $self -> param("id");
-	# $self->stash(product => $self->product->find($productId));
-	# $self->stash(productVersion => $self->productVersion->find($productId));
 	$self->render(product => $self->product->find($productId),productVersion => $self->productVersion->find($productId));
   	$self->render();
 }
