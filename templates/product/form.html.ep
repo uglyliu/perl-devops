@@ -85,7 +85,7 @@
                 
                 <p class="stdformbutton">
                     <input type="hidden" value ="<%= $product -> {id} %>" name="id" id="id"/>
-                	<button class="submit radius2">提交</button>
+                	<button class="submit radius2">确定</button>
                 </p>
             </form>
 

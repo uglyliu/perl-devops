@@ -10,6 +10,12 @@ sub index {
   $self->render(listData => $self->product->all());
 }
 
+#产品详情页
+sub detail{
+
+
+}
+
 #添加产品线页面
 sub addPage{
 	my $self = shift;

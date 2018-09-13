@@ -14,15 +14,22 @@ function flushHtmlByAjax(url,tagId){
 	})
 }
 
+//编辑产品页面
 function productEditPage(id){
 	flushHtmlByAjax("/product/editPage/"+id,"centerContent");
 }
 
-function productVersionPage(id){
-	flushHtmlByAjax("/product/version/"+id,"centerContent");
-}
-
+//新增产品页面
 function productAddPage(){
 	flushHtmlByAjax("/product/addPage","centerContent");
 }
 
+//新增产品版本页面
+function versionAddPage(productId){
+	flushHtmlByAjax("/product/version/addPage/"+productId,"centerContent");
+}
+
+//编辑产品版本页面
+function productEditPage(id){
+	flushHtmlByAjax("/product/version/editPage/"+id,"centerContent");
+}

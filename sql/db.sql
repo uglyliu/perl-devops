@@ -7,4 +7,4 @@ CREATE SEQUENCE product_id_seq
     NO MAXVALUE
     CACHE 1;
 
-alter table product alter column id set default nextval('product_id_seq');
+-- alter table product alter column id set default nextval('product_id_seq');

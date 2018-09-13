@@ -35,12 +35,19 @@ sub startup {
   #产品线
   $r->get('/product')->to('product#index');
   $r->get('/product/addPage')->to('product#addPage');
-  $r->post('/product/add')->to('product#add');
   $r->get('/product/editPage/:id')->to('product#editPage');
+  $r->post('/product/add')->to('product#add');
   $r->post('/product/edit')->to('product#edit');
 
-
+  #产品版本管理
   $r->get('/product/version/:id')->to('product_version#index');
+  $r->get('/product/version/addPage/:id')->to('product_version#addPage');
+  $r->get('/product/version/editPage/:id')->to('product_version#editPage');
+  $r->post('/product/version/add')->to('product_version#add');
+  $r->post('/product/version/edit')->to('product_version#edit');
+
+  
+
 }
 
 1;
