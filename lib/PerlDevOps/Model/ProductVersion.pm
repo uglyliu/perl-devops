@@ -11,8 +11,13 @@ sub add {
 sub all { shift->pg->db->select('product_version')->hashes->to_array }
 
 sub find {
+  my ($self, $id) = @_;
+  return $self->pg->db->select('product_version', '*', {id => $id})->hash;
+}
+
+sub findAll {
   my ($self, $productId) = @_;
-  return $self->pg->db->select('product_version', '*', {productId => $productId})->hash;
+  return $self->pg->db->select('product_version', '*', {productId => $productId})->hashes->to_array;
 }
 
 sub remove {

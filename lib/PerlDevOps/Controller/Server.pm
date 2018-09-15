@@ -1,15 +1,12 @@
-package PerlDevOps::Controller::ProductVersion;
+package PerlDevOps::Controller::Assets;
 use Mojo::Base 'Mojolicious::Controller';
 
 
 
-#产品线版本列表
+#资产列表
 sub index{
 	my $self = shift;
-	my $productId = $self -> param("id");
-	$self->render(product => $self->product->find($productId),
-				  productVersion => $self->productVersion->findAll($productId)
-	);
+	$self->render(listData => $self->assets->all());
 }
 
 #详情页
@@ -21,9 +18,8 @@ sub detail{
 #添加页面
 sub addPage{
 	my $self = shift;
-	my $productId = $self -> param("id");
 
-	$self->render(product => $self->product->find($productId),version => {});
+	$self->render(assets => {});
 }
 
 sub editPage{

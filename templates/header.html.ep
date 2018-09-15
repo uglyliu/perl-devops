@@ -45,7 +45,7 @@
 <div class="header">
 	<ul class="headermenu">
 		<li class="current"><a href="/"><span class="icon icon-flatscreen"></span>首页</a></li>
-		<li><a href="/product"><span class="icon icon-message"></span>资产管理</a></li>
+		<li><a href="/assets"><span class="icon icon-message"></span>资产管理</a></li>
 		<li><a href="/product"><span class="icon icon-pencil"></span>产品线管理</a></li>
 		<li><a href="messages.html"><span class="icon icon-message"></span>产品线环境配置</a></li>
 		<li><a href="messages.html"><span class="icon icon-message"></span>持续集成</a></li>

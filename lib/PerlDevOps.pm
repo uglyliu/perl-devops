@@ -2,6 +2,7 @@ package PerlDevOps;
 use Mojo::Base 'Mojolicious';
 use PerlDevOps::Model::Product;
 use PerlDevOps::Model::ProductVersion;
+use PerlDevOps::Model::Assets;
 use Mojo::Pg;
 
 # This method will run once at server start
@@ -20,6 +21,9 @@ sub startup {
   );
   $self->helper(
     productVersion => sub { state $productVersion = PerlDevOps::Model::ProductVersion->new(pg => shift->pg) }
+  );
+  $self->helper(
+    assets => sub { state $assets = PerlDevOps::Model::Assets->new(pg => shift->pg) }
   );
 
 
@@ -46,7 +50,12 @@ sub startup {
   $r->post('/product/version/add')->to('product_version#add');
   $r->post('/product/version/edit')->to('product_version#edit');
 
-  
+  #资产管理
+  $r->get('/assets')->to('assets#index');
+  $r->get('/assets/addPage')->to('assets#addPage');
+  $r->get('/assets/editPage/:id')->to('assets#editPage');
+  $r->post('/assets/add')->to('assets#add');
+  $r->post('/assets/edit')->to('assets#edit');
 
 }
 

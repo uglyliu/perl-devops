@@ -1,0 +1,113 @@
+<div id="contentwrapper" class="contentwrapper">
+    <div class="contenttitle2">
+        <h3><%= $title %></h3>
+    </div
+    <div id="validation" class="subcontent" >
+    	
+            <form id="_server" class="stdform" method="post" action="<%= $formUrl %>">
+                <p>
+                    <label>资产类型(必填)</label>
+                    <span class="field">
+                        <select name="assetType" id="assetType">
+                            <option value="1">服务器</option>
+                            <option value="2">交换机</option>
+                            <option value="3">防火墙</option>
+                        </select>
+                    </span>
+                </p>
+                <p>
+                    <label>IDC机房(可选)</label>
+                    <span class="field"><input type="text" value ="<%= $assets -> {idc} %>" name="idc" id="idc" class="smallinput" placeholder = "如：10.24.22.12" /></span>
+                </p>
+                <p>
+                    <label>机柜号(可选)</label>
+                    <span class="field"><input type="text" value ="<%= $assets -> {cabinetNo} %>" name="cabinetNo" id="cabinetNo" class="smallinput" placeholder = "如：10.24.22.12" /></span>
+                </p>
+                <p>
+                    <label>机柜中序号(可选)</label>
+                    <span class="field"><input type="text" value ="<%= $assets -> {cabinetOrder} %>" name="cabinetOrder" id="cabinetOrder" class="smallinput" placeholder = "如：10.24.22.12" /></span>
+                </p>
+                <p>
+                    <label>设备状态(必填)</label>
+                    <span class="field">
+                        <select name="status" id="status">
+                            <option value="1">上架</option>
+                            <option value="2">在线</option>
+                            <option value="3">离线</option>
+                            <option value="4">下架</option>
+                        </select>
+                    </span>
+                </p>
+                <p>
+                    <label>IP地址(必填)</label>
+                    <span class="field"><input type="text" value ="<%= $assets -> {ip} %>" name="ip" id="ip" class="smallinput" placeholder = "如：10.24.22.12" /></span>
+                </p>
+                <p>
+                    <label>Port端口(必填)</label>
+                    <span class="field">
+                    <input type="text" value ="<%= $assets -> {port} %>" name="port" id="port" class="smallinput" placeholder = "如： 22"/>
+                    </span>
+                </p>
+                <p>
+                    <label>用户名(必填)</label>
+                    <span class="field">
+                    <input type="text" value ="<%= $assets -> {user} %>" name="user" id="user" class="smallinput" placeholder = "如：root" />
+                    </span>
+                </p>
+
+                <p>
+                    <label>密码(必填)</label>
+                    <span class="field"><input type="text" value ="<%= $assets -> {password} %>" name="password" id="password" class="smallinput" /></span>
+                </p>
+
+               
+                <p>
+                    <label>资产名称(可选)</label>
+                    <span class="field"><input type="text" value ="<%= $assets -> {assetNum} %>" name="assetNum" id="assetNum" class="smallinput" placeholder = "如：PowerEdge R720xd"/></span>
+                </p>
+                 <p>
+                    <label>资产制造商(可选)</label>
+                    <span class="field"><input type="text" value ="<%= $assets -> {manufacturer} %>" name="manufacturer" id="manufacturer" class="smallinput" placeholder = "如：IBM"/></span>
+                </p>
+                <p>
+                    <label>主机序列号(可选)</label>
+                    <span class="field"><input type="text" value ="<%= $assets -> {serialNum} %>" name="serialNum" id="serialNum" class="smallinput" placeholder = "如： FJ2SHY1"/></span>
+                </p>                    
+               
+                <p>
+                    <label>主机名(可选)</label>
+                    <span class="field"><input type="text" value ="<%= $assets -> {host} %>" name="host" id="host" class="smallinput" placeholder = "如：张启山"/></span>
+                </p>
+                <p>
+                    <label>Mac地址(可选)</label>
+                    <span class="field"><input type="text" value ="<%= $assets -> {mac} %>" name="mac" id="mac" class="smallinput" placeholder = "如：00:0c:29:c9:e9:2e"/></span>
+                </p>
+
+                <p>
+                    <label>操作系统(可选)</label>
+                    <span class="field">
+                        <input type="text" value ="<%= $assets -> {os} %>" name="os" id="os" class="longinput" placeholder = "如：Linux version 3.10.0-693.2.2.el7.x86_64 (builder@kbuilder.dev.centos.org) (gcc version 4.8.5 20150623 (Red Hat 4.8.5-16) (GCC) ) #1 SMP Tue Sep 12 22:26:13 UTC 2017"/>
+                    </span>
+                </p>
+                <p>
+                    <label>版本信息(可选)</label>
+                    <span class="field">
+                        <input type="text" value ="<%= $assets -> {version} %>" name="version" id="version" class="longinput" placeholder = "如：CentOS Linux release 7.4.1708 (Core)"/>
+                    </span>
+                </p>    
+                <p>
+                    <label>系统配置信息(可选)</label>
+                    <span class="field"><input type="text" value ="<%= $assets -> {config} %>" name="config" id="config" class="longinput" /></span>
+                </p>
+                <br />
+                
+                <p class="stdformbutton">
+                    <input type="hidden" value ="<%= $assets -> {id} %>" name="id" id="id"/>
+                	<button class="submit radius2">确定</button>
+                </p>
+            </form>
+
+    </div>
+</div>
+
+%= javascript '/js/product-form.js'

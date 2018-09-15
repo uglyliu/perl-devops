@@ -1,10 +1,12 @@
-
-% my @versionStatus = qw(需求收集 需求评审 立项 排期 开发 测试 安全测试 发布 验收);
+% my @versionStatusConfig = qw(需求收集 需求评审 立项 排期 开发 测试 安全测试 发布 验收);
 
 <div id="contentwrapper" class="contentwrapper">
     <div class="contenttitle2">
         <h3><%= $title %></h3>
     </div
+    <div>
+        <a href="/product/version/<%= $product -> {id} %>">返回</a>
+    </div>
     <div id="validation" class="subcontent" >
     	
             <form id="_version" class="stdform" method="post" action="<%= $formUrl %>">
@@ -18,8 +20,8 @@
                 <p>
                     <label>版本状态</label>
                     <span class="field">
-                        <select name="selection" id="selection" value ="<%= $version -> {versionStatus} %>">
-                        % while (my($idx, $val) = each @versionStatus) {
+                        <select name="versionStatus" id="versionStatus">
+                        % while (my($idx, $val) = each @versionStatusConfig) {
                             <option value="<%= $idx %>" <%= $version -> {versionStatus} eq $idx ? "selected" : "" %> >
                                 <%=$val%>
                             </option>

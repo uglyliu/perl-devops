@@ -30,6 +30,7 @@ sub add{
   return $self->render(action => '/product/addPage', product => {}) if $v->has_error;
 
   my $param = $v->output;
+  #初始状态为“新创建”，之后取版本表的状态：版本名称+版本状态
   $param -> {productStatus} = "新创建";
   $param -> {createDate} = localtime();
   $param -> {createUser} = "admin";

@@ -18,11 +18,10 @@ $ source /etc/profile
 $ mkdir /usr/pgsql-10/include
 
 #支持远程客户端连接
-$ cd /var/lib/pgsql/10/data/
-$ vim postgresql.conf
+$ vim /var/lib/pgsql/10/data/postgresql.conf
 listen_addresses = '*'
 #添加策略
-$ vim pg_hba.conf
+$ vim /var/lib/pgsql/10/data/pg_hba.conf
 host    all             all             远程ip/24       md5
 
 $ systemctl restart postgresql-10.service

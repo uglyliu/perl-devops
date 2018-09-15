@@ -1,3 +1,5 @@
+% my @versionStatusConfig = qw(需求收集 需求评审 立项 排期 开发 测试 安全测试 发布 验收);
+
 <div class="pageheader notab">
     <h1 class="pagetitle"> <a href="/product">产品线列表</a> / <%= $product->{productName} %> </h1>
     <span class="pagedesc"><%= $product->{productDesc}%></span>            
@@ -34,7 +36,7 @@
                     </a>     
                 </td>
                 <td><%= $version -> {productManager} %></td>
-                <td><%= $version -> {productStatus} %></td>
+                <td><%= $versionStatusConfig[$version -> {versionStatus}] %></td>
                 <td><%= $version -> {startTime} %></td>
                 <td class="center"><%= $version -> {endTime} %></td> 
                 <td class="center">

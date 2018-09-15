@@ -24,6 +24,8 @@
     %= javascript '/js/custom/tables.js'
     %= javascript '/js/custom.js'
 
+    
+
 </head>
 <body class="withvernav">
     <div class="bodywrapper">
