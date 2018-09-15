@@ -1,18 +1,18 @@
 /*
  Navicat Premium Data Transfer
 
- Source Server         : localhost_postgresql
+ Source Server         : 47.92.78.127
  Source Server Type    : PostgreSQL
- Source Server Version : 100004
- Source Host           : localhost:5432
+ Source Server Version : 100005
+ Source Host           : 47.92.78.127:5432
  Source Catalog        : postgres
  Source Schema         : public
 
  Target Server Type    : PostgreSQL
- Target Server Version : 100004
+ Target Server Version : 100005
  File Encoding         : 65001
 
- Date: 13/09/2018 18:30:02
+ Date: 15/09/2018 14:58:16
 */
 
 
@@ -22,25 +22,25 @@
 DROP TABLE IF EXISTS "public"."product";
 CREATE TABLE "public"."product" (
   "id" int4 NOT NULL DEFAULT nextval('product_id_seq'::regclass),
-  "productName" varchar(40) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "productDesc" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "productStatus" varchar(50) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "productManager" varchar(20) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "productContact" varchar(30) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "devManager" varchar(20) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "devContact" varchar(30) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "qaManager" varchar(20) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "qaContact" varchar(30) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "safeManager" varchar(20) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "safeContact" varchar(30) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "onlineVersion" varchar(30) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "productWiki" varchar(100) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "createDate" timestamp(0) DEFAULT NULL,
-  "updateDate" timestamp(0) DEFAULT NULL,
-  "createUser" varchar(20) COLLATE "pg_catalog"."default" DEFAULT NULL,
+  "productName" varchar(40) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "productDesc" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "productStatus" varchar(50) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "productManager" varchar(20) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "productContact" varchar(50) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "devManager" varchar(20) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "devContact" varchar(50) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "qaManager" varchar(20) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "qaContact" varchar(50) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "safeManager" varchar(20) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "safeContact" varchar(50) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "onlineVersion" varchar(30) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "productWiki" varchar(100) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "createDate" timestamp(0) DEFAULT NULL::timestamp without time zone,
+  "updateDate" timestamp(0) DEFAULT NULL::timestamp without time zone,
+  "createUser" varchar(20) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
   "updateUser" varchar(20) COLLATE "pg_catalog"."default" DEFAULT ''::character varying,
-  "lastOnline" timestamp(0) DEFAULT NULL,
-  "productTags" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL
+  "lastOnline" timestamp(0) DEFAULT NULL::timestamp without time zone,
+  "productTags" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying
 )
 ;
 COMMENT ON COLUMN "public"."product"."productName" IS '产品名称';
