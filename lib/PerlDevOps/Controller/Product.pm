@@ -56,7 +56,7 @@ sub edit {
  $param -> {updateDate} = localtime();
  $param -> {updateUser} = "admin";
 
- $self->product->save($id, $v->output);
+ $self->product->save($id, $param);
  $self->redirect_to('/product');
 }
 

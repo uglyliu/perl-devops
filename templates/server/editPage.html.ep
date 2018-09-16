@@ -1,1 +1,1 @@
-%= include 'server/form', title => '编辑', formUrl => '/server/edit'
+%= include 'server/form', title => '编辑', formUrl => '/assets/server/edit'

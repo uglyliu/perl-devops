@@ -3,6 +3,7 @@ use Mojo::Base 'Mojolicious';
 use PerlDevOps::Model::Product;
 use PerlDevOps::Model::ProductVersion;
 use PerlDevOps::Model::Assets;
+use PerlDevOps::Model::Server;
 use Mojo::Pg;
 
 # This method will run once at server start
@@ -25,7 +26,9 @@ sub startup {
   $self->helper(
     assets => sub { state $assets = PerlDevOps::Model::Assets->new(pg => shift->pg) }
   );
-
+  $self->helper(
+    server => sub { state $server = PerlDevOps::Model::Server->new(pg => shift->pg) }
+  );
 
 
   # Documentation browser under "/perldoc"
@@ -56,6 +59,11 @@ sub startup {
   $r->get('/assets/editPage/:id')->to('assets#editPage');
   $r->post('/assets/add')->to('assets#add');
   $r->post('/assets/edit')->to('assets#edit');
+
+
+  #服务器管理
+  $r->get('/assets/server/editPage/:id')->to('server#editPage');
+  $r->post('/assets/server/edit')->to('server#edit');
 
 }
 

@@ -43,3 +43,8 @@ function assetsAddPage(){
 function assetsEditPage(id){
 	flushHtmlByAjax("/assets/editPage/"+id,"centerContent");
 }
+
+//编辑服务器页面
+function serverEditPage(assetsId){
+   flushHtmlByAjax("/assets/server/editPage/"+assetsId,"centerContent");
+}

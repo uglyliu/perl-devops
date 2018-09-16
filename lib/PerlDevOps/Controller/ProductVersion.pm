@@ -60,7 +60,7 @@ sub edit{
 	 $param -> {updateDate} = localtime();
 	 $param -> {updateUser} = "admin";
 
-	 $self->productVersion->save($id, $v->output);
+	 $self->productVersion->save($id, $param);
 	 $self->redirect_to("/product/version/"+($param -> {productId}));
 
 }

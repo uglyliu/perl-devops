@@ -16,6 +16,12 @@
                         <input type="text" value ="<%= $version -> {versionName} %>" name="versionName" id="versionName" class="smallinput" placeholder = "如：v2.1.0" />
                     </span>
                 </p>
+                <p>
+                    <label>版本标签</label>
+                    <span class="field">
+                        <input type="text" value ="<%= $version -> {tags} %>" name="tags" id="tags" class="smallinput" placeholder = "如：uat,payment,v2.0.0或者uat|payment|v2.0.0" />
+                    </span>
+                </p>
             
                 <p>
                     <label>版本状态</label>

@@ -46,7 +46,7 @@
 
                 <td class="center">
                     <a href="<%= $assets->{id} %>" target="_blank">删除</a> &nbsp; 
-                    <a href="/server/detail/<%= $assets -> {id} %>">服务器详情</a>
+                    <a href="#" onclick="serverEditPage(<%= $assets -> {id} %>)">服务器维护</a>
                 </td>
             </tr>
             % }

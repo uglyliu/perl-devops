@@ -20,6 +20,7 @@
                 <th class="head0">版本</th>
                 <th class="head1">负责人</th>
                 <th class="head1">当前状态</th>
+                <th class="head1">标签</th>
                 <th class="head0">开始时间</th>
                 <th class="head1">结束时间</th>
                 <th class="head0">操作</th>
@@ -37,6 +38,7 @@
                 </td>
                 <td><%= $version -> {productManager} %></td>
                 <td><%= $versionStatusConfig[$version -> {versionStatus}] %></td>
+                <td><%= $version -> {tags} %></td>
                 <td><%= $version -> {startTime} %></td>
                 <td class="center"><%= $version -> {endTime} %></td> 
                 <td class="center">

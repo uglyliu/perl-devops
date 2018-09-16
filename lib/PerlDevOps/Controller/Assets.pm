@@ -40,11 +40,15 @@ sub add{
 	  $param -> {cabinetOrder} =  $self->param("cabinetOrder");
 	  $param -> {tags} =  $self->param("tags");
 
-	  $param -> {createDate} = localtime();
+	  my $date = localtime();
+	  $param -> {createDate} = $date;
 	  $param -> {createUser} = "admin";
 
 
 	  my $id = $self->assets->add($param);
+	  #保存服务器数据,这里需要事务保存	
+	  $self->server->add({id => $id,createDate => $date,createUser => "admin"});
+
 	  $self->redirect_to("/assets");
 
 }
@@ -65,7 +69,7 @@ sub edit{
 	 $param -> {updateDate} = localtime();
 	 $param -> {updateUser} = "admin";
 
-	 $self->assets->save($id, $v->output);
+	 $self->assets->save($id, $param);
 	 $self->redirect_to("/assets");
 
 }

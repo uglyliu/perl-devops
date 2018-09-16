@@ -5,7 +5,7 @@ has 'pg';
 
 sub add {
   my ($self, $server) = @_;
-  return $self->pg->db->insert('server', $assets, {returning => 'id'})->hash->{id};
+  return $self->pg->db->insert('server', $server, {returning => 'id'})->hash->{id};
 }
 
 sub all { shift->pg->db->select('server')->hashes->to_array }
