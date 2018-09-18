@@ -2,8 +2,9 @@
 
 
 ![](img/index.png)
-
-![](img/detail.png)
+![](img/version.png)
+![](img/assets.png)
+![](img/k8s.png)
 
 ### 安装PostgreSQL
 ```shell

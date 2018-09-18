@@ -48,3 +48,8 @@ function assetsEditPage(id){
 function serverEditPage(assetsId){
    flushHtmlByAjax("/assets/server/editPage/"+assetsId,"centerContent");
 }
+
+//kubernetes
+function kubernetesConfigPage(){
+	 flushHtmlByAjax("/k8s/configPage","centerContent");
+}

@@ -1,0 +1,117 @@
+<div id="contentwrapper" class="contentwrapper">
+    <div class="contenttitle2">
+        <h3>k8s配置项管理</h3>
+    </div
+    <div id="validation" class="subcontent" >
+    	
+            <form id="_kubeConfig" class="stdform" method="post" action="/k8s/edit">
+            	<p>
+                	<label>k8s集群名称</label>
+                    <span class="field">
+                        <input type="text" value ="<%= $kubeConfig -> {productName} %>" name="productName" id="productName" class="smallinput" placeholder = "如：Test环境k8s集群" />
+                        <a>集群唯一标识</a>
+                    </span>
+                </p>
+
+                <p>
+                    <label>k8s网络模型</label>
+                    <span class="field">
+                        <select name="selection" id="selection">
+                            <option value="">请选择网络模型</option>
+                            <option value="1">Flannel</option>
+                            <option value="2">Calico</option>
+                            <option value="3">Canal</option>
+                            <option value="4">Weave Net</option>
+                        </select>
+                        <a>k8s支持多种网络模型配置，默认使用Flannel</a>
+                    </span>
+                </p>
+                                    
+                <p>
+                    <label>Master节点</label>
+                    <span class="field"><input type="text" value ="<%= $kubeConfig -> {productWiki} %>" name="productWiki" id="productWiki" class="smallinput" placeholder = "如：10.10.10.1[1,2,3]  test.k8s-[1-3].cluster"/> 
+                    <a>支持IP、域名正则匹配</a>
+                    </span>
+                </p>
+
+                <p>
+                    <label>CA证书路径</label>
+                    <span class="field"><input type="text" value ="<%= $kubeConfig -> {productManager} %>" name="productManager" id="productManager" class="smallinput" placeholder = ""/>
+                    <a></a>
+                    </span>
+                </p>
+
+                <p>
+                    <label>etcd集群</label>
+                    <span class="field"><input type="text" value ="<%= $kubeConfig -> {productContact} %>" name="productContact" id="productContact" class="smallinput" placeholder = "如：10.20.20.1[1,2],10.20.20.22"/>
+                    <a>暂时只支持静态模式</a>    
+                    </span>
+                </p>
+
+                <p>
+                    <label>YAML主目录</label>
+                    <span class="field">
+                        <input type="text" value ="<%= $kubeConfig -> {devManager} %>" name="devManager" id="devManager" class="smallinput" />
+                    <a></a> 
+                    </span>
+                </p>
+
+                <p>
+                    <label>NodePort</label>
+                    <span class="field"><input type="text" value ="<%= $kubeConfig -> {devContact} %>" name="devContact" id="devContact" class="smallinput" />
+                    <a>NodePort端口</a> 
+                    </span>
+                </p>
+
+                <p>
+                    <label>token</label>
+                    <span class="field"><input type="text" value ="<%= $kubeConfig -> {qaManager} %>" name="qaManager" id="qaManager" class="smallinput" />
+                    <a>只针对token模式启作用</a> 
+                    </span>
+                </p>
+
+                <p>
+                    <label>kubernetes版本</label>
+                    <span class="field"><input type="text" value ="<%= $kubeConfig -> {qaContact} %>" name="qaContact" id="qaContact" class="smallinput" />
+                    <a>版本号指定，可以部署不同版本的k8s集群</a>
+                    </span>
+                </p>
+                <p>
+                    <label>负载均衡器配置</label>
+                    <span class="field">
+                        <select name="selection" id="selection">
+                            <option value="">请选择负载均衡器</option>
+                            <option value="1">LVS</option>
+                            <option value="2">Nginx</option>
+                            <option value="3">HaProxy</option>
+                        </select>
+                        <a>4层负载均衡配置，当前可选lvs、nginx</a>        
+                    </span>
+                </p>    
+                <p>
+                    <label>keepalived部署</label>
+                    <span class="field"><input type="text" value ="<%= $kubeConfig -> {safeContact} %>" name="safeContact" id="safeContact" class="smallinput" />
+                    <a>keepalived健康监测</a>  
+                    </span>
+                </p>
+                <p>
+                	<label>集群描述</label>
+                    <span class="field">
+                        <textarea cols="80" rows="5" name="productDesc" class="mediuminput" id="productDesc">
+                        <%= $kubeConfig -> {productDesc} %>
+                        </textarea>
+                    </span> 
+                </p>
+               
+                <br />
+                
+                <p class="stdformbutton">
+                    <input type="hidden" value ="<%= $kubeConfig -> {id} %>" name="id" id="id"/>
+                	<button class="submit radius2">确定</button>
+                </p>
+            </form>
+
+    </div>
+</div>
+
+%= javascript '/js/product-form.js'

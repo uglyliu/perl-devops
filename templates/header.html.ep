@@ -50,7 +50,7 @@
 		<li><a href="messages.html"><span class="icon icon-message"></span>产品线环境配置</a></li>
 		<li><a href="messages.html"><span class="icon icon-message"></span>持续集成</a></li>
 		<li><a href="messages.html"><span class="icon icon-message"></span>镜像管理</a></li>
-		<li><a href="reports.html"><span class="icon icon-chart"></span>部署k8s集群</a></li>
+		<li><a href="/k8s"><span class="icon icon-chart"></span>部署k8s集群</a></li>
 		<li><a href="messages.html"><span class="icon icon-message"></span>权限管理</a></li>
 	</ul>
     <div class="headerwidget">

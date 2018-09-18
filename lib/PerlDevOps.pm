@@ -4,6 +4,8 @@ use PerlDevOps::Model::Product;
 use PerlDevOps::Model::ProductVersion;
 use PerlDevOps::Model::Assets;
 use PerlDevOps::Model::Server;
+use PerlDevOps::Model::Kubernetes;
+use PerlDevOps::Model::KubeConfig;
 use Mojo::Pg;
 
 # This method will run once at server start
@@ -29,7 +31,12 @@ sub startup {
   $self->helper(
     server => sub { state $server = PerlDevOps::Model::Server->new(pg => shift->pg) }
   );
-
+  $self->helper(
+    kubernetes => sub { state $kubernetes = PerlDevOps::Model::Kubernetes->new(pg => shift->pg) }
+  );
+  $self->helper(
+    kubeConfig => sub {state $kubeConfig = PerlDevOps::Model::KubeConfig->new(pg => shift->pg)}
+  );
 
   # Documentation browser under "/perldoc"
   $self->plugin('PODRenderer') if $config->{perldoc};
@@ -60,10 +67,17 @@ sub startup {
   $r->post('/assets/add')->to('assets#add');
   $r->post('/assets/edit')->to('assets#edit');
 
-
   #服务器管理
   $r->get('/assets/server/editPage/:id')->to('server#editPage');
   $r->post('/assets/server/edit')->to('server#edit');
+
+
+  #k8s
+  $r->get('/k8s')->to('kubernetes#index');
+  $r->get('/k8s/configPage')->to('kubernetes#configPage');
+  $r->post('/k8s/config')->to('kubernetes#config');
+  $r->get('/k8s/install')->to('kubernetes#install');
+  $r->get('/k8s/status')->to('kubernetes#status');
 
 }
 
