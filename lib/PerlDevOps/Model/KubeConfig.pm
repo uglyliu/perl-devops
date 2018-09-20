@@ -1,26 +1,28 @@
 package PerlDevOps::Model::KubeConfig;
 use Mojo::Base -base;
 
+has 'pg';
+
 sub add {
   my ($self, $kubeConfig) = @_;
-  return $self->pg->db->insert('kub_config', $kubeConfig, {returning => 'id'})->hash->{id};
+  return $self->pg->db->insert('kube_config', $kubeConfig, {returning => 'id'})->hash->{id};
 }
 
-sub all { shift->pg->db->select('kub_config')->hashes->to_array }
+sub all { shift->pg->db->select('kube_config')->hashes->to_array }
 
 sub find {
   my ($self, $id) = @_;
-  return $self->pg->db->select('kub_config', '*', {id => $id})->hash;
+  return $self->pg->db->select('kube_config', '*', {id => $id})->hash;
 }
 
 sub remove {
   my ($self, $id) = @_;
-  $self->pg->db->delete('kub_config', {id => $id});
+  $self->pg->db->delete('kube_config', {id => $id});
 }
 
 sub save {
   my ($self, $id, $kubeConfig) = @_;
-  $self->pg->db->update('kub_config', $kubeConfig, {id => $id});
+  $self->pg->db->update('kube_config', $kubeConfig, {id => $id});
 }
 
 1;
