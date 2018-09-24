@@ -39,7 +39,7 @@
                 <span class="arrow"></span>
                 <ul id="formsub">
                     <li><a href="#" onclick="kubernetesConfigPage()">配置管理</a></li>
-                    <li><a href="#" onclick="productAddPage()">一键部署</a></li>
+                    <li><a href="#" onclick="k8sInstall(1)">一键部署</a></li>
                     <li><a href="#" onclick="productAddPage()">在线管理</a></li>
                     <li><a href="#" onclick="productAddPage()">调度</a></li>
                     <li><a href="#" onclick="productAddPage()">日志</a></li>

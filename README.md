@@ -40,7 +40,7 @@ postgres=# alter user postgres with password '123456';
 ### 安装Perl依赖
 ```perl
 $ sudo yum -y install perl-CPAN
-$ curl -L https://cpanmin.us | perl - -M https://cpan.metacpan.org -n Mojolicious Mojo::Pg Minion Digest::MD5
+$ curl -L https://cpanmin.us | perl - -M https://cpan.metacpan.org -n Mojolicious Mojo::Pg Minion Digest::MD5 Expect
 
 $ morbo -l http://*:8080 -w ./ script/perl_dev_ops
 ```

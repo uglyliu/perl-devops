@@ -53,3 +53,7 @@ function serverEditPage(assetsId){
 function kubernetesConfigPage(){
 	 flushHtmlByAjax("/k8s/configPage","centerContent");
 }
+
+function k8sInstall(id){
+	 flushHtmlByAjax("/k8s/install/"+id,"centerContent");
+}

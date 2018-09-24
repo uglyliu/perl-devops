@@ -1,6 +1,23 @@
-package PerlDevOps::Controller::KubeConfig;
+package PerlDevOps::Controller::Kubernetes;
 use Mojo::Base 'Mojolicious::Controller';
+use Mojo::Log;
+use Expect;
 
+
+#默认安装路径
+my $perl_install_dir = "/usr/local";
+
+#将来需要设置成自定义路径
+my $log_file = "/root/perl-devops/k8s-install.log";
+
+#将来需要设置成自定义用户名、密码
+my $default_user = "root";
+my $default_pwd = "root";
+
+my $log = Mojo::Log->new(path => "$log_file");
+
+#安装k8s任务
+app->minion->add_task(install_k8s_task => \&install_8s_task);
 
 sub index{
 	my $self = shift;
@@ -78,7 +95,7 @@ sub _validation {
 #安装前配置项检测
 sub install_check{
 	my ($self,$k8s_id) = @_;
-	my $kubeConfig = $self->app->kubeConfig->find($k8s_id);
+	my $kubeConfig = $self->app->kubernetes->find($k8s_id);
 	return $kubeConfig;
 }
 
@@ -88,11 +105,52 @@ sub install_etcd{
 }
 
 #安装
+#1、配置免登录
+#2、关闭系统配置
 sub install{
-	 $self->app->kubeConfig->find();
+	my $self = shift;
+	my $kubeConfig = install_check($self,$self->param("id"));
+	#启动job
+	$self->minion->enqueue(install_k8s_task => $kubeConfig);
+	$self->render();
+｝
 
+#具体安装逻辑
+sub install_8s_task{
+	 my($job,$kubeConfig) = @_;
+
+	my $masterAddress = $kubeConfig->{"masterAddress"};
+	my $nodeAddress = $kubeConfig->{"nodeAddress"};
+
+	# my $ssh_ip_str = parse_ips($masterAddress+" "+$nodeAddress);
+	# $log->info("准备配置SSH免密钥登录[$default_user]: $sshIP");
+	# ssh_login($default_user,$default_pwd,$ssh_ip_str);
+
+
+	$job->app->log->debug("完成安装: $masterAddress");
 }
 
+
+sub showLog{
+	my $self = shift;
+	say "==================";
+	$log->info("-========================");
+	$self->on(message => sub {
+		my ($self, $msg) = @_;
+		$self->send("echo: $msg");
+	});
+}
+
+#解析ip集合，返回数组
+#ips=192.18.10.14.[0-9] 192.18.10.130 192.18.10.12.[0-3]
+sub parse_ips{
+	my $ips = shift;
+	#$ips =~ s/,/ /g;
+	my $parse_command = "$perl_install_dir/bin/fornodes $ips";
+	my $parse_result = `$parse_command`;
+	my @parse_array = split(/\s+/,$parse_result);
+	return \@parse_array;
+}
 
 #将数组$array转换成以$flag分割字符串
 #默认以空格分割
@@ -116,14 +174,14 @@ sub ssh_login{
 	
 	$log->info("-------------- 开始批量配置 $user 用户的ssh无密码登录！--------------$ssh_command");
 	
-	my $obj = Expect->spawn($ssh_command) or $log->info("Couldn't exec command:$ssh_command.");
+	my $obj = Expect->spawn($ssh_command) or $log->error("Couldn't exec command:$ssh_command.");
 	
 	my ( $pos, $err, $match, $before, $after ) = $obj->expect(10,
 			[ qr/Password:/i,
 			  sub{ my $self = shift; $self->send("$passwd\r"); exp_continue;}
 			]
 	);
-	$obj->soft_close( );		
+	$obj->soft_close( );
 	$log->info("--------------完成批量配置 $user 用户的ssh无密码登录！--------------");
 
 }

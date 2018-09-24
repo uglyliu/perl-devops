@@ -12,7 +12,7 @@
  Target Server Version : 100004
  File Encoding         : 65001
 
- Date: 20/09/2018 18:24:13
+ Date: 24/09/2018 14:52:18
 */
 
 
@@ -22,34 +22,35 @@
 DROP TABLE IF EXISTS "public"."kube_config";
 CREATE TABLE "public"."kube_config" (
   "id" int4 NOT NULL DEFAULT nextval('kube_config_id_seq'::regclass),
-  "kubeName" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "kubeVersion" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "kubeCniVersion" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "etcdVersion" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "dockerVersion" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "netMode" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "clusterIP" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "serviceClusterIP" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "dnsIP" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "dnsDN" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "apiVIP" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "ingressVIP" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "sshUser" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "sshPort" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "masterAddress" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "masterHostName" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "nodeHostName" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "etcdAddress" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "yamlDir" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "nodePort" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "kubeToken" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "loadBalance" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "kubeDesc" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "createDate" timestamp(6) DEFAULT NULL,
-  "createUser" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "updateDate" timestamp(6) DEFAULT NULL,
+  "kubeName" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "kubeVersion" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "kubeCniVersion" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "etcdVersion" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "dockerVersion" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "netMode" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "clusterIP" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "serviceClusterIP" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "dnsIP" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "dnsDN" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "apiVIP" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "ingressVIP" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "sshUser" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "sshPort" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "masterAddress" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "masterHostName" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "nodeHostName" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "etcdAddress" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "yamlDir" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "nodePort" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "kubeToken" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "loadBalance" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "kubeDesc" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "createDate" timestamp(6) DEFAULT NULL::timestamp without time zone,
+  "createUser" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "updateDate" timestamp(6) DEFAULT NULL::timestamp without time zone,
   "updateUser" varchar COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "keepalivedAddress" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL
+  "keepalivedAddress" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "nodeAddress" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL
 )
 ;
 COMMENT ON COLUMN "public"."kube_config"."kubeName" IS '集群标识';
@@ -76,12 +77,13 @@ COMMENT ON COLUMN "public"."kube_config"."kubeToken" IS 'token';
 COMMENT ON COLUMN "public"."kube_config"."loadBalance" IS '负载均衡器配置';
 COMMENT ON COLUMN "public"."kube_config"."kubeDesc" IS '集群描述';
 COMMENT ON COLUMN "public"."kube_config"."keepalivedAddress" IS 'keepalived地址';
+COMMENT ON COLUMN "public"."kube_config"."nodeAddress" IS '初始node节点';
 
 -- ----------------------------
 -- Records of kube_config
 -- ----------------------------
-INSERT INTO "public"."kube_config" VALUES (1, 'Test', 'v1.11.0', 'v0.7.1', 'v3.3.8', 'v18.05.0-ce', 'Calico-v3.1', '10.244.0.0/16', '10.96.0.0/12', '10.96.0.10', 'cluster.local', '11.11.11.109', '11.11.11.110', 'root', '2222|2200|2201|2202|2203|2204', '11.11.11.11[1-3]', 'k8s-m', 'k8s-n', '11.11.11.11[1-3]', '/root', '8090', NULL, 'HaProxy', '    描述                    
-                        ', '2018-09-20 17:59:33', 'admin', NULL, NULL, '11.11.11.11[1-3]');
+INSERT INTO "public"."kube_config" VALUES (1, 'Test', 'v1.11.0', 'v0.7.1', 'v3.3.8', 'v18.05.0-ce', 'Calico-v3.1', '10.244.0.0/16', '10.96.0.0/12', '10.96.0.10', 'cluster.local', '11.11.11.109', '11.11.11.110', 'root', '2222|2200|2201|2202|2203|2204', 'k8s[1-3]', 'k8s-', 'k8s-n', '11.11.11.11[1-3]', '/root', '8090', NULL, 'HaProxy', '    描述                    
+                        ', '2018-09-20 17:59:33', 'admin', NULL, NULL, 'k8s[4-6]', NULL);
 
 -- ----------------------------
 -- Primary Key structure for table kube_config

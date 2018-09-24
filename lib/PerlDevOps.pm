@@ -4,7 +4,7 @@ use PerlDevOps::Model::Product;
 use PerlDevOps::Model::ProductVersion;
 use PerlDevOps::Model::Assets;
 use PerlDevOps::Model::Server;
-use PerlDevOps::Model::KubeConfig;
+use PerlDevOps::Model::Kubernetes;
 use Mojo::Pg;
 
 # This method will run once at server start
@@ -33,7 +33,7 @@ sub startup {
     server => sub { state $server = PerlDevOps::Model::Server->new(pg => shift->pg) }
   );
   $self->helper(
-    kubeConfig => sub { state $kubeConfig = PerlDevOps::Model::KubeConfig->new(pg => shift->pg) }
+    kubernetes => sub { state $kubernetes = PerlDevOps::Model::Kubernetes->new(pg => shift->pg) }
   );
 
   # Documentation browser under "/perldoc"
@@ -71,11 +71,15 @@ sub startup {
 
 
   #k8s
-  $r->get('/k8s')->to('kube_config#index');
-  $r->get('/k8s/configPage')->to('kube_config#configPage');
-  $r->post('/k8s/config')->to('kube_config#config');
-  $r->get('/k8s/install')->to('kube_config#install');
-  $r->get('/k8s/status')->to('kube_config#status');
+  $r->get('/k8s')->to('kubernetes#index');
+  $r->get('/k8s/configPage')->to('kubernetes#configPage');
+  $r->post('/k8s/config')->to('kubernetes#config');
+ 
+  $r->get('/k8s/status')->to('kubernetes#status');
+
+  $r->get('/k8s/install/:id')->to('kubernetes#install');
+
+  $r->websocket('/k8s/log')->to('kubernetes#log');
 
 }
 
