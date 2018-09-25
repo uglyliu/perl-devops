@@ -1,4 +1,4 @@
-package PerlDevOps::Controller::Kubernetes;
+package PerlDevOps::Controller::KubeConfig;
 use Mojo::Base 'Mojolicious::Controller';
 use Mojo::Log;
 use Expect;
@@ -16,8 +16,7 @@ my $default_pwd = "root";
 
 my $log = Mojo::Log->new(path => "$log_file");
 
-#安装k8s任务
-app->minion->add_task(install_k8s_task => \&install_8s_task);
+
 
 sub index{
 	my $self = shift;
@@ -95,13 +94,8 @@ sub _validation {
 #安装前配置项检测
 sub install_check{
 	my ($self,$k8s_id) = @_;
-	my $kubeConfig = $self->app->kubernetes->find($k8s_id);
+	my $kubeConfig = $self->app->kubeConfig->find($k8s_id);
 	return $kubeConfig;
-}
-
-#安装etcd集群
-sub install_etcd{
-
 }
 
 #安装
@@ -111,14 +105,19 @@ sub install{
 	my $self = shift;
 	my $kubeConfig = install_check($self,$self->param("id"));
 	#启动job
-	$self->minion->enqueue(install_k8s_task => $kubeConfig);
+	say "------1------";
+	$self->app->minion->enqueue(install_k8s_task => [$kubeConfig] );
+	say "------2------";
+	$self->app->minion->perform_jobs;
+	say "------3------";
 	$self->render();
-｝
+}
 
 #具体安装逻辑
-sub install_8s_task{
-	 my($job,$kubeConfig) = @_;
-
+sub install_k8s_task{
+	my($job,@args) = @_;
+	my $kubeConfig = $args[0];
+	say "++++++++++111++++++++++++";
 	my $masterAddress = $kubeConfig->{"masterAddress"};
 	my $nodeAddress = $kubeConfig->{"nodeAddress"};
 
@@ -126,19 +125,19 @@ sub install_8s_task{
 	# $log->info("准备配置SSH免密钥登录[$default_user]: $sshIP");
 	# ssh_login($default_user,$default_pwd,$ssh_ip_str);
 
-
-	$job->app->log->debug("完成安装: $masterAddress");
+	say "++++++++++2222++++++++++++";
+	$job->app->log->debug("finish install k8s: $masterAddress");
 }
 
 
-sub showLog{
+sub log{
 	my $self = shift;
-	say "==================";
-	$log->info("-========================");
+	say "========websocket have connection==========";
 	$self->on(message => sub {
 		my ($self, $msg) = @_;
 		$self->send("echo: $msg");
 	});
+
 }
 
 #解析ip集合，返回数组
@@ -172,7 +171,7 @@ sub ssh_login{
 	
 	my $ssh_command = "su - $user -c \"$perl_install_dir/bin/key2nodes -u $user $ipstr\"";
 	
-	$log->info("-------------- 开始批量配置 $user 用户的ssh无密码登录！--------------$ssh_command");
+	$log->info("-------------- start SSH LOGIN config [$user] [$ssh_command] -----");
 	
 	my $obj = Expect->spawn($ssh_command) or $log->error("Couldn't exec command:$ssh_command.");
 	
@@ -182,8 +181,7 @@ sub ssh_login{
 			]
 	);
 	$obj->soft_close( );
-	$log->info("--------------完成批量配置 $user 用户的ssh无密码登录！--------------");
-
+	$log->info("------------ finish SSH LOGIN CONFIG [$user] --------------");
 }
 
 #修改系统配置

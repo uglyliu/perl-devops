@@ -7,23 +7,10 @@
     <div class="subcontent chatcontent">
            <div id="chatmessage" class="chatmessage radius2">
                 <!--内容区域-->
-                <div id="chatmessageinner">
-                   <!--  <p>
-                        <img src="images/thumbs/avatar12.png" alt="">
-                        <span class="msgblock radius2">
-                            <strong>操作员</strong> 
-                            <span class="time">- 10:14 am</span>
-                            <span class="msg">tail -f install.log</span>
-                        </span>
+                <div id="chatmessageinner">    
+                    <p class="reply" id="reply">
+                       
                     </p>
-                    <p class="reply">
-                        <img src="images/thumbs/avatar13.png" alt="">
-                        <span class="msgblock radius2">
-                            <strong>Tigress:</strong> 
-                            <span class="time">10:15 am</span>
-                            <span class="msg">This is an automated reply!!</span>
-                        </span>
-                    </p> -->
                 </div>
            </div>
            <div class="messagebox radius2">

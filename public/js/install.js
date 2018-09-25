@@ -1,23 +1,7 @@
 // var ws;
 var ws;
-var log = function (text) {
-  jQuery('#log').val(jQuery('#log').val() + text + "\n");
-};
+
 jQuery(document).ready(function(){
-	//  ws  = new WebSocket("ws://127.0.0.1:8080/k8s/log");
-	//  console.log("====ws======",ws);
-	//  ws.onopen = function(){
- //      	console.log("==========",ws);
- //      	ws.send("发送数据");
- //      	console.log("数据发送中...");
- //     };
-
-	// //接收消息
-	// ws.onmessage = function (e) {
-
-	// 	jQuery("#chatmessageinner").append("<p class=\"reply\"><span class=\"msg\">"+e.data+"</span></p>");
-	// };
-
 	console.log('start connection...');
   	var timerID = 0;
  	function keepAlive() {
@@ -48,7 +32,7 @@ jQuery(document).ready(function(){
 	        ws.send(jQuery('#msg').val());
 	        jQuery('#msg').val('');
 	      } else {
-	        log('Connection with server is lost');
+	        console.log('Connection with server is lost');
 	    	socketinit();
 	      }
 	    }
@@ -56,16 +40,6 @@ jQuery(document).ready(function(){
 
 	
 });
-//发送消息
-// function sendChat() {
-
-// 	ws  = new WebSocket("ws://localhost:8080/k8s/log");
-// 	console.log("==========",ws);
-// 	ws.send(jQuery("#msgbox").val());
-// 	jQuery("#msgbox").val("");
-
-// }
-
 
 function socketinit() {
   console.log('init websocket....');
@@ -76,14 +50,14 @@ function socketinit() {
 
   ws = new WebSocket(uri + '/k8s/log');
   ws.onopen = function () {
-    log('websocket opened');
+    console.log('websocket opened');
   };
 
   ws.onmessage = function (msg) {
-    var res = JSON.parse(msg.data);
-    log('[' + res.hms + '] ' + res.text);
+  	console.log("recive msg",msg.data);
+    jQuery("#reply").append("<span class=\"msg\">"+msg.data+"</span>");
   };
   ws.onclose = function (evt) {
-    log('websocket onclose');
+    console.log('websocket onclose');
   }
 }

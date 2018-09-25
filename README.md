@@ -52,3 +52,11 @@ $ morbo -l http://*:8080 -w ./ script/perl_dev_ops
 	a、一个用于生产环境(pro)b、一个用于测试环境，如果有多个测试环境，如dev、test、uat，则通过namespace实现
 
 
+
+
+
+#mojo
+https://kiwiirc.com/nextclient/#irc://irc.freenode.net/mojo?nick=guest-?
+#历史数据
+https://freenode.logbot.info/mojo/20180925
+

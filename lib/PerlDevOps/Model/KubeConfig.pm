@@ -1,4 +1,4 @@
-package PerlDevOps::Model::Kubernetes;
+package PerlDevOps::Model::KubeConfig;
 use Mojo::Base -base;
 
 has 'pg';

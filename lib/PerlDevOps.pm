@@ -4,12 +4,14 @@ use PerlDevOps::Model::Product;
 use PerlDevOps::Model::ProductVersion;
 use PerlDevOps::Model::Assets;
 use PerlDevOps::Model::Server;
-use PerlDevOps::Model::Kubernetes;
+use PerlDevOps::Model::KubeConfig;
 use Mojo::Pg;
+use Minion;
 
 # This method will run once at server start
 sub startup {
   my $self = shift;
+
 
   # Load configuration from hash returned by "my_app.conf"
   my $config = $self->plugin('Config');
@@ -20,6 +22,11 @@ sub startup {
   $self->helper(
     pg => sub { state $pg = Mojo::Pg->new(shift->config('pg')) }
   );
+
+
+  $self->plugin(Minion => {Pg => $self->pg});
+
+
   $self->helper(
     product => sub { state $product = PerlDevOps::Model::Product->new(pg => shift->pg) }
   );
@@ -33,8 +40,11 @@ sub startup {
     server => sub { state $server = PerlDevOps::Model::Server->new(pg => shift->pg) }
   );
   $self->helper(
-    kubernetes => sub { state $kubernetes = PerlDevOps::Model::Kubernetes->new(pg => shift->pg) }
+    kubeConfig => sub { state $kube = PerlDevOps::Model::KubeConfig->new(pg => shift->pg) }
   );
+
+
+  
 
   # Documentation browser under "/perldoc"
   $self->plugin('PODRenderer') if $config->{perldoc};
@@ -71,16 +81,19 @@ sub startup {
 
 
   #k8s
-  $r->get('/k8s')->to('kubernetes#index');
-  $r->get('/k8s/configPage')->to('kubernetes#configPage');
-  $r->post('/k8s/config')->to('kubernetes#config');
+  $r->get('/k8s')->to('kube_config#index');
+  $r->get('/k8s/configPage')->to('kube_config#configPage');
+  $r->post('/k8s/config')->to('kube_config#config');
  
-  $r->get('/k8s/status')->to('kubernetes#status');
+  $r->get('/k8s/status')->to('kube_config#status');
 
-  $r->get('/k8s/install/:id')->to('kubernetes#install');
+  $r->get('/k8s/install/:id')->to('kube_config#install');
 
-  $r->websocket('/k8s/log')->to('kubernetes#log');
+  $r->websocket('/k8s/log')->to('kube_config#log');
 
+
+  #安装k8s任务
+  $self->app->minion->add_task(install_k8s_task => \&PerlDevOps::Controller::KubeConfig::install_k8s_task);
 }
 
 1;
