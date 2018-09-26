@@ -107,17 +107,19 @@ sub install_k8s_task{
 
 	my $masterAddress = $kubeConfig->{"masterAddress"};
 	my $nodeAddress = $kubeConfig->{"nodeAddress"};
+	my $k8sPrefix = $kubeConfig->{"masterHostName"};
 
 	#1、config ssh login
 	my $all_ip = $masterAddress." ".$nodeAddress;
-	$log->info("will config All IP list：$all_ip");
 	my $ipArray = parse_ips($all_ip);
-	$log->info("will config IP list：$ipArray");
 	my $ssh_ip_str = array2str($ipArray);
-	$log->info("will config ssh login by user[$default_user]: $ssh_ip_str");
-	ssh_login($default_user,$default_pwd,$ssh_ip_str);
+	#ssh_login($default_user,$default_pwd,$ssh_ip_str);
 
-	$log->info("finish install k8s: $masterAddress");
+	update_host_config($masterAddress,$nodeAddress,$k8sPrefix);
+	#2、update os config
+	
+	#3、
+	$log->info("finish install k8s: $all_ip");
 }
 
 
@@ -128,7 +130,6 @@ sub log{
 		my ($self, $msg) = @_;
 		$self->send("echo: $msg");
 	});
-
 }
 
 #parse ip to array
@@ -157,14 +158,15 @@ sub array2str{
 #config user ssh secret key login
 #$ipstr: ip str by space separated
 sub ssh_login{
-	
 	my ($user,$passwd,$ipstr) = @_;
-	
+	$log->info("will Permanently added [$user] [$ipstr] (ECDSA) to the list of known hosts.");
+
 	my $ssh_command = "su - $user -c \"$perl_install_dir/bin/key2nodes -u $user $ipstr\"";
 	
-	$log->info("----------- start ssh secret key login [$user] [$ssh_command] -----");
+	$log->info("----------- start ssh secret key login config ----------");
+	$log->info("will exec command: [$ssh_command]");
 	
-	my $obj = Expect->spawn($ssh_command) or $log->error("Couldn't exec command:$ssh_command.");
+	my $obj = Expect->spawn($ssh_command) or $log->error("Couldn't exec command: [$ssh_command]");
 	
 	my ( $pos, $err, $match, $before, $after ) = $obj->expect(10,
 			[ qr/Password:/i,
@@ -172,14 +174,95 @@ sub ssh_login{
 			]
 	);
 	$obj->soft_close( );
-	$log->info("------------ finish ssh secret key login [$user] --------------");
+	$log->info("------------ finish ssh secret key login config  -----");
+}
+
+sub builder_ip_host_name_hash{
+	my ($ip_hostname_hash,$ip_array,$k8s_prefix) = @_;
+	foreach my $ip (@$ip_array) {
+		$ip_hostname_hash->{$ip} = $k8s_prefix.$ip;
+	}
+}
+
+# config ip-hostname map
+sub update_host_config{
+	my ($master_ip_str,$node_ip_str,$k8s_prefix) = @_;
+
+	$log->info("--------------start config hosts and hostname！--------------");
+
+	my $ip_hostname_hash = {};
+	my $master_ip_array = parse_ips($master_ip_str);
+	my $node_ip_array = parse_ips($node_ip_str);
+	#init ip-hostname map
+	builder_ip_host_name_hash($ip_hostname_hash,$master_ip_array,$k8s_prefix."m");
+	builder_ip_host_name_hash($ip_hostname_hash,$node_ip_array,$k8s_prefix."n");
+
+	my $all_ip_list = [keys %$ip_hostname_hash];
+
+	while (($ip, $hostname) = each %$ip_hostname_hash) {
+		#1、clear config file：/etc/hosts and /etc/sysconfig/network
+		my $clean_command = $perl_install_dir."/bin/atnodes -w -L -u $user \"/bin/sed -i \"/$k8s_prefix/d\" /etc/hosts;sed -i \"/HOSTNAME=/d\" /etc/sysconfig/network;\" $ip";
+		invoke_sys_command($clean_command);
+		#2、update hostname 
+		my $hostname_command = $perl_install_dir."/bin/atnodes -w -L -u $user \"/bin/echo \"HOSTNAME=$hostname\" >> /etc/sysconfig/network;/bin/hostname $hostname\" $ip";
+		invoke_sys_command($hostname_command);
+	}
+	foreach my $item (@$all_ip_list) {
+		$log->info("...start config《 $item 》hosts...");		
+		while (($k, $v) = each %$ips) {
+			my $hosts_command = $perl_install_dir."/bin/atnodes -w -L -u $user \"/bin/echo  $k               $v  >> /etc/hosts \" $item";
+			invoke_sys_command($hosts_command);
+		}
+		$log->info("...finish config《 $item 》hosts...");
+	}
+	#3、flush config file
+	my $flush_command = $perl_install_dir."/bin/atnodes -w -L -u $user \"service network restart;\" $ip";
+	invoke_sys_command($flush_command);
+	$log->info("--------------finish config hosts and hostname！--------------");
 }
 
 #updage os config
 sub update_sys_config{
+	my $ip_str = shift;
+
+	my $bin =  "su - $user -c $perl_install_dir/bin/atnodes -u $user";
+	#disable firewalld & selinux
+	invoke_sys_command("$bin \"systemctl stop firewalld && systemctl disable firewalld\" $ip_str");
+	invoke_sys_command("$bin \"sed -i 's/SELINUX=permissive/SELINUX=disabled/' /etc/sysconfig/selinux\" $ip_str");
+	invoke_sys_command("$bin \"setenforce 0\" $ip_str");
+
+	#disable swap
+	invoke_sys_command("$bin \"swapoff -a && sysctl -w vm.swappiness=0\" $ip_str");
+	invoke_sys_command("$bin \"sed -i '/swap.img/d' /etc/fstab\" $ip_str");
+}
+
+# install docker
+sub install_docker{
+
 
 }
 
+#config network forward param
+sub config_net_forward_param{
+	# cat <<EOF >  /etc/sysctl.d/k8s.conf
+	# net.ipv4.ip_forward = 1
+	# net.bridge.bridge-nf-call-ip6tables = 1
+	# net.bridge.bridge-nf-call-iptables = 1
+	# vm.swappiness=0
+	# EOF
+	# sysctl --system
+}
+
+#use for invoke system command
+sub invoke_sys_command{
+	my ($command,$desc)= @_;
+	if($desc){
+		log->info("~~~~~~~~~~~~~".$desc."~~~~~~~~~~~~~");	
+	}
+	$log->info("start exec command: [$command]");
+	my $exec_result = `$command`;
+	$log->info("finish exec command: [$command] [$exec_result]");
+}
 
 #create CA
 sub create_ca{
