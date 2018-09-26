@@ -49,8 +49,8 @@ $ morbo -l http://*:8080 -w ./ script/perl_dev_ops
 ### Kubernetes安装
 
 1、建议安装2个k8s集群：
-	a、一个用于生产环境(pro)
-	b、一个用于测试环境，如果有多个测试环境，如dev、test、uat，则通过namespace实现
+	* 一个用于生产环境(pro)
+	* 一个用于测试环境，如果有多个测试环境，如dev、test、uat，则通过namespace实现
 
 
 
