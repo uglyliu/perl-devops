@@ -111,7 +111,7 @@ sub install_k8s_task{
 
 	#1、config ssh login
 	my $ssh_ip_str = parse_ips($masterAddress+" "+$nodeAddress);
-	$log->info("will config ssh login by user[$default_user]: $sshIP");
+	$log->info("will config ssh login by user[$default_user]: $ssh_ip_str");
 	ssh_login($default_user,$default_pwd,$ssh_ip_str);
 
 	$job->app->log->debug("finish install k8s: $masterAddress");
