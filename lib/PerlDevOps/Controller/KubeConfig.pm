@@ -101,7 +101,6 @@ sub install{
 	$self->render();
 }
 
-
 sub install_k8s_task{
 	my($job,@args) = @_;
 	my $kubeConfig = $args[0];
@@ -110,11 +109,11 @@ sub install_k8s_task{
 	my $nodeAddress = $kubeConfig->{"nodeAddress"};
 
 	#1、config ssh login
-	my $ssh_ip_str = parse_ip_to_str($masterAddress+" "+$nodeAddress);
+	my $ssh_ip_str = array2str(parse_ips($masterAddress." ".$nodeAddress));
 	$log->info("will config ssh login by user[$default_user]: $ssh_ip_str");
 	ssh_login($default_user,$default_pwd,$ssh_ip_str);
 
-	$job->app->log->debug("finish install k8s: $masterAddress");
+	$log->info("finish install k8s: $masterAddress");
 }
 
 
@@ -126,11 +125,6 @@ sub log{
 		$self->send("echo: $msg");
 	});
 
-}
-
-sub parse_ip_to_str{
-	my $ips = shift;
-	return array2str(parse_ips($ips)," ");
 }
 
 #parse ip to array
