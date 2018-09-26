@@ -4,13 +4,13 @@ use Mojo::Log;
 use Expect;
 
 
-#默认安装路径
+#perl install dir
 my $perl_install_dir = "/usr/local";
 
-#将来需要设置成自定义路径
+#k8s install log，the frontend will read log content by websocket
 my $log_file = "/root/perl-devops/k8s-install.log";
 
-#将来需要设置成自定义用户名、密码
+#shoud be config by config file
 my $default_user = "root";
 my $default_pwd = "root";
 
@@ -20,9 +20,7 @@ my $log = Mojo::Log->new(path => "$log_file");
 
 sub index{
 	my $self = shift;
-
-	$self->render();
-	 
+	$self->render(); 
 }
 
 sub configPage{
@@ -50,11 +48,6 @@ sub config{
 	 	 $self->app->kubeConfig->save($id, $param);
 	 }
 	 $self->redirect_to('/k8s');
-}
-
-sub status{
-
-
 }
 
 
@@ -91,41 +84,36 @@ sub _validation {
 
 
 
-#安装前配置项检测
+#config info check before install
 sub install_check{
 	my ($self,$k8s_id) = @_;
 	my $kubeConfig = $self->app->kubeConfig->find($k8s_id);
 	return $kubeConfig;
 }
 
-#安装
-#1、配置免登录
-#2、关闭系统配置
+
 sub install{
 	my $self = shift;
 	my $kubeConfig = install_check($self,$self->param("id"));
 	#启动job
-	say "------1------";
 	$self->app->minion->enqueue(install_k8s_task => [$kubeConfig] );
-	say "------2------";
 	$self->app->minion->perform_jobs;
-	say "------3------";
 	$self->render();
 }
 
-#具体安装逻辑
+
 sub install_k8s_task{
 	my($job,@args) = @_;
 	my $kubeConfig = $args[0];
-	say "++++++++++111++++++++++++";
+
 	my $masterAddress = $kubeConfig->{"masterAddress"};
 	my $nodeAddress = $kubeConfig->{"nodeAddress"};
 
-	# my $ssh_ip_str = parse_ips($masterAddress+" "+$nodeAddress);
-	# $log->info("准备配置SSH免密钥登录[$default_user]: $sshIP");
-	# ssh_login($default_user,$default_pwd,$ssh_ip_str);
+	#1、config ssh login
+	my $ssh_ip_str = parse_ips($masterAddress+" "+$nodeAddress);
+	$log->info("will config ssh login by user[$default_user]: $sshIP");
+	ssh_login($default_user,$default_pwd,$ssh_ip_str);
 
-	say "++++++++++2222++++++++++++";
 	$job->app->log->debug("finish install k8s: $masterAddress");
 }
 
@@ -140,7 +128,7 @@ sub log{
 
 }
 
-#解析ip集合，返回数组
+#parse ip to array
 #ips=192.18.10.14.[0-9] 192.18.10.130 192.18.10.12.[0-3]
 sub parse_ips{
 	my $ips = shift;
@@ -151,8 +139,8 @@ sub parse_ips{
 	return \@parse_array;
 }
 
-#将数组$array转换成以$flag分割字符串
-#默认以空格分割
+
+#split $array by $flag,default by space
 sub array2str{
 	my ($array,$flag) = @_;
 	if (ref($array) eq 'ARRAY') {
@@ -163,15 +151,15 @@ sub array2str{
 	}
 }
 
-#配置某个用户的ssh互通
-#$ipstr = 以空格分割ip字符串
+#config user ssh secret key login
+#$ipstr: ip str by space separated
 sub ssh_login{
 	
 	my ($user,$passwd,$ipstr) = @_;
 	
 	my $ssh_command = "su - $user -c \"$perl_install_dir/bin/key2nodes -u $user $ipstr\"";
 	
-	$log->info("-------------- start SSH LOGIN config [$user] [$ssh_command] -----");
+	$log->info("----------- start ssh secret key login [$user] [$ssh_command] -----");
 	
 	my $obj = Expect->spawn($ssh_command) or $log->error("Couldn't exec command:$ssh_command.");
 	
@@ -181,21 +169,16 @@ sub ssh_login{
 			]
 	);
 	$obj->soft_close( );
-	$log->info("------------ finish SSH LOGIN CONFIG [$user] --------------");
+	$log->info("------------ finish ssh secret key login [$user] --------------");
 }
 
-#修改系统配置
+#updage os config
 sub update_sys_config{
 
 }
 
-#下载相应安装包
-sub download_package{
 
-}
-
-
-#创建CA并产生凭证
+#create CA
 sub create_ca{
 
 }

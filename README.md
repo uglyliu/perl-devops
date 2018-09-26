@@ -10,7 +10,7 @@
 ```shell
 $ wget https://download.postgresql.org/pub/repos/yum/10/redhat/rhel-7-x86_64/pgdg-centos10-10-2.noarch.rpm
 $ rpm -ivh pgdg-centos10-10-2.noarch.rpm
-$ yum install postgresql10-server postgresql10-contrib postgresql-devel
+$ yum install -y postgresql10-server postgresql10-contrib postgresql-devel
 
 $ vim /etc/profile
   export POSTGRES_HOME=/usr/pgsql-10
@@ -40,7 +40,7 @@ postgres=# alter user postgres with password '123456';
 ### 安装Perl依赖
 ```perl
 $ sudo yum -y install perl-CPAN
-$ curl -L https://cpanmin.us | perl - -M https://cpan.metacpan.org -n Mojolicious Mojo::Pg Minion Digest::MD5 Expect
+$ curl -L https://cpanmin.us | perl - -M https://cpan.metacpan.org -n Mojolicious Mojo::Pg Minion Digest::MD5 Expect Compress::Raw::Zlib
 
 $ morbo -l http://*:8080 -w ./ script/perl_dev_ops
 ```
