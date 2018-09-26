@@ -208,6 +208,7 @@ sub update_host_config{
 		invoke_sys_command($hostname_command);
 	}
 	foreach my $item (@$all_ip_list) {
+		#3、update ip-hostname
 		$log->info("...start config《 $item 》hosts...");		
 		while (my ($k, $v) = each %$ip_hostname_hash) {
 			my $hosts_command = $perl_install_dir."/bin/atnodes -L -u $default_user \"/bin/echo  $k               $v  >> /etc/hosts \" $item";
@@ -215,7 +216,7 @@ sub update_host_config{
 		}
 		$log->info("...finish config《 $item 》hosts...");
 	}
-	#3、flush config file
+	#4、flush config file
 	my $all_ip_str = array2str($all_ip_list);
 	my $flush_command = $perl_install_dir."/bin/atnodes -L -u $default_user \"service network restart;\" $all_ip_str";
 	invoke_sys_command($flush_command);
