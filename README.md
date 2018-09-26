@@ -46,15 +46,12 @@ $ morbo -l http://*:8080 -w ./ script/perl_dev_ops
 ```
 
 
-### Kubernetes安装
-
-1、建议安装2个k8s集群：
-	* 一个用于生产环境(pro)
-	* 一个用于测试环境，如果有多个测试环境，如dev、test、uat，则通过namespace实现
-
-
-
-
+### Kubernetes集群
+```perl
+建议部署两个集群：
+一个用于生产环境(pro)
+一个用于测试环境，如果有多个测试环境，如dev、test、uat，可通过namespace实现
+```
 
 #### #mojo
 https://kiwiirc.com/nextclient/#irc://irc.freenode.net/mojo?nick=guest-?
