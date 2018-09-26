@@ -209,7 +209,7 @@ sub update_host_config{
 	}
 	foreach my $item (@$all_ip_list) {
 		$log->info("...start config《 $item 》hosts...");		
-		while (my ($k, $v) = each %$ips) {
+		while (my ($k, $v) = each %$ip_hostname_hash) {
 			my $hosts_command = $perl_install_dir."/bin/atnodes -w -L -u $default_user \"/bin/echo  $k               $v  >> /etc/hosts \" $item";
 			invoke_sys_command($hosts_command);
 		}
@@ -226,7 +226,7 @@ sub update_host_config{
 sub update_sys_config{
 	my $ip_str = shift;
 
-	my $bin =  "su - $user -c $perl_install_dir/bin/atnodes -u $user";
+	my $bin =  "su - $default_user -c $perl_install_dir/bin/atnodes -u $default_user";
 	#disable firewalld & selinux
 	invoke_sys_command("$bin \"systemctl stop firewalld && systemctl disable firewalld\" $ip_str");
 	invoke_sys_command("$bin \"sed -i 's/SELINUX=permissive/SELINUX=disabled/' /etc/sysconfig/selinux\" $ip_str");
