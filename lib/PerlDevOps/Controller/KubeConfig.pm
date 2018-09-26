@@ -109,7 +109,11 @@ sub install_k8s_task{
 	my $nodeAddress = $kubeConfig->{"nodeAddress"};
 
 	#1、config ssh login
-	my $ssh_ip_str = array2str(parse_ips($masterAddress." ".$nodeAddress));
+	my $all_ip = $masterAddress." ".$nodeAddress;
+	$log->info("will config All IP list：$all_ip");
+	my $ipArray = parse_ips($all_ip);
+	$log->info("will config IP list：$ipArray");
+	my $ssh_ip_str = array2str($ipArray);
 	$log->info("will config ssh login by user[$default_user]: $ssh_ip_str");
 	ssh_login($default_user,$default_pwd,$ssh_ip_str);
 
