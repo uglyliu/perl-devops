@@ -201,23 +201,23 @@ sub update_host_config{
 
 	while (my ($ip, $hostname) = each %$ip_hostname_hash) {
 		#1、clear config file：/etc/hosts and /etc/sysconfig/network
-		my $clean_command = $perl_install_dir."/bin/atnodes -w -L -u $default_user \"/bin/sed -i \"/$k8s_prefix/d\" /etc/hosts;sed -i \"/HOSTNAME=/d\" /etc/sysconfig/network;\" $ip";
+		my $clean_command = $perl_install_dir."/bin/atnodes -L -u $default_user \"/bin/sed -i \"/$k8s_prefix/d\" /etc/hosts;sed -i \"/HOSTNAME=/d\" /etc/sysconfig/network;\" $ip";
 		invoke_sys_command($clean_command);
 		#2、update hostname 
-		my $hostname_command = $perl_install_dir."/bin/atnodes -w -L -u $default_user \"/bin/echo \"HOSTNAME=$hostname\" >> /etc/sysconfig/network;/bin/hostname $hostname\" $ip";
+		my $hostname_command = $perl_install_dir."/bin/atnodes -L -u $default_user \"/bin/echo \"HOSTNAME=$hostname\" >> /etc/sysconfig/network;/bin/hostname $hostname\" $ip";
 		invoke_sys_command($hostname_command);
 	}
 	foreach my $item (@$all_ip_list) {
 		$log->info("...start config《 $item 》hosts...");		
 		while (my ($k, $v) = each %$ip_hostname_hash) {
-			my $hosts_command = $perl_install_dir."/bin/atnodes -w -L -u $default_user \"/bin/echo  $k               $v  >> /etc/hosts \" $item";
+			my $hosts_command = $perl_install_dir."/bin/atnodes -L -u $default_user \"/bin/echo  $k               $v  >> /etc/hosts \" $item";
 			invoke_sys_command($hosts_command);
 		}
 		$log->info("...finish config《 $item 》hosts...");
 	}
 	#3、flush config file
 	my $all_ip_str = array2str($all_ip_list);
-	my $flush_command = $perl_install_dir."/bin/atnodes -w -L -u $default_user \"service network restart;\" $all_ip_str";
+	my $flush_command = $perl_install_dir."/bin/atnodes -L -u $default_user \"service network restart;\" $all_ip_str";
 	invoke_sys_command($flush_command);
 	$log->info("--------------finish config hosts and hostname！--------------");
 }
