@@ -37,12 +37,12 @@ sub config{
 	 my $param = $v->output;
      my $id = $self->param('id');
 	 if(!$id){
-	 	 #新建
+	 	 #new
 	 	 $param -> {createDate} = localtime();
 	 	 $param -> {createUser} = "admin";
 	 	 my $id = $self->app->kubeConfig->add($param);
 	 }else{
-	 	 #修改
+	 	 #update
 	 	 $param -> {updateDate} = localtime();
 	 	 $param -> {updateUser} = "admin";
 	 	 $self->app->kubeConfig->save($id, $param);
@@ -82,8 +82,6 @@ sub _validation {
   	return $v;
 }
 
-
-
 #config info check before install
 sub install_check{
 	my ($self,$k8s_id) = @_;
@@ -110,16 +108,20 @@ sub install_k8s_task{
 	my $k8sPrefix = $kubeConfig->{"masterHostName"};
 
 	#1、config ssh login
-	my $all_ip = $masterAddress." ".$nodeAddress;
-	my $ipArray = parse_ips($all_ip);
-	my $ssh_ip_str = array2str($ipArray);
-	#ssh_login($default_user,$default_pwd,$ssh_ip_str);
+	my $all_ip_pair = $masterAddress." ".$nodeAddress;
+	my $all_ip_array = parse_ips($all_ip_pair);
+	my $all_ip_str = array2str($all_ip_array);
+	#ssh_login($default_user,$default_pwd,$all_ip_str);
 
+	#2、all node config hostname
 	update_host_config($masterAddress,$nodeAddress,$k8sPrefix);
-	#2、update os config
-	
-	#3、
-	$log->info("finish install k8s: $all_ip");
+	#3、all node update os config
+	update_sys_config($all_ip_str);
+	#4、all node install docker v17.03
+	install_docker($all_ip_str);
+	#
+	#
+	$log->info("finish install k8s: $all_ip_pair");
 }
 
 
@@ -201,67 +203,89 @@ sub update_host_config{
 
 	while (my ($ip, $hostname) = each %$ip_hostname_hash) {
 		#1、clear config file：/etc/hosts and /etc/sysconfig/network
-		my $clean_command = $perl_install_dir."/bin/atnodes -L -u $default_user \"/bin/sed -i \"/$k8s_prefix/d\" /etc/hosts;sed -i \"/HOSTNAME=/d\" /etc/sysconfig/network;\" $ip";
-		invoke_sys_command($clean_command);
+		invoke_sys_command("/bin/sed -i \"/$k8s_prefix/d\" /etc/hosts;sed -i \"/HOSTNAME=/d\" /etc/sysconfig/network;",$ip);
 		#2、update hostname 
-		my $hostname_command = $perl_install_dir."/bin/atnodes -L -u $default_user \"/bin/echo \"HOSTNAME=$hostname\" >> /etc/sysconfig/network;/bin/hostname $hostname\" $ip";
-		invoke_sys_command($hostname_command);
+		invoke_sys_command("/bin/echo \"HOSTNAME=$hostname\" >> /etc/sysconfig/network;/bin/hostname $hostname",$ip);
 	}
 	foreach my $item (@$all_ip_list) {
 		#3、update ip-hostname
-		$log->info("...start config《 $item 》hosts...");		
+		$log->info("...start config《 $item 》hosts...");
 		while (my ($k, $v) = each %$ip_hostname_hash) {
-			my $hosts_command = $perl_install_dir."/bin/atnodes -L -u $default_user \"/bin/echo  $k               $v  >> /etc/hosts \" $item";
-			invoke_sys_command($hosts_command);
+			invoke_sys_command("/bin/echo  $k               $v  >> /etc/hosts",$item);
 		}
 		$log->info("...finish config《 $item 》hosts...");
 	}
 	#4、flush config file
-	my $all_ip_str = array2str($all_ip_list);
-	my $flush_command = $perl_install_dir."/bin/atnodes -L -u $default_user \"service network restart;\" $all_ip_str";
-	invoke_sys_command($flush_command);
+	invoke_sys_command("service network restart;",array2str($all_ip_list));
 	$log->info("--------------finish config hosts and hostname！--------------");
 }
 
 #updage os config
 sub update_sys_config{
 	my $ip_str = shift;
-
-	my $bin =  "su - $default_user -c $perl_install_dir/bin/atnodes -u $default_user";
 	#disable firewalld & selinux
-	invoke_sys_command("$bin \"systemctl stop firewalld && systemctl disable firewalld\" $ip_str");
-	invoke_sys_command("$bin \"sed -i 's/SELINUX=permissive/SELINUX=disabled/' /etc/sysconfig/selinux\" $ip_str");
-	invoke_sys_command("$bin \"setenforce 0\" $ip_str");
+	invoke_sys_command("systemctl stop firewalld && systemctl disable firewalld",$ip_str);
+	invoke_sys_command("sed -i 's/SELINUX=permissive/SELINUX=disabled/' /etc/sysconfig/selinux",$ip_str);
+	invoke_sys_command("setenforce 0",$ip_str);
 
 	#disable swap
-	invoke_sys_command("$bin \"swapoff -a && sysctl -w vm.swappiness=0\" $ip_str");
-	invoke_sys_command("$bin \"sed -i '/swap.img/d' /etc/fstab\" $ip_str");
+	invoke_sys_command("swapoff -a && sysctl -w vm.swappiness=0,"$ip_str);
+	invoke_sys_command("sed -i '/swap.img/d' /etc/fstab",$ip_str);
+
+	#open forward, Docker v1.13
+	invoke_sys_command("iptables -P FORWARD ACCEPT",$ip_str);
 }
 
 # install docker
 sub install_docker{
+	my $ip_str = shift;
+	#install last edition
+	#invoke_sys_command("curl -fsSL https://get.docker.com/ | sh",$ip_str);
 
-
+	#install specified version
+	invoke_sys_command("yum remove -y docker-ce docker-ce-selinux container-selinux",$ip_str);
+	invoke_sys_command("yum install -y --setopt=obsoletes=0 docker-ce-17.03.1.ce-1.el7.centos docker-ce-selinux-17.03.1.ce-1.el7.centos",$ip_str);
+	#start docker
+	invoke_sys_command("systemctl enable docker && systemctl restart docker",$ip_str);
+    #config system net bridge
+    invoke_sys_command("cat <<EOF  >  /etc/sysctl.d/k8s.conf
+    net.ipv4.ip_forward = 1
+	net.bridge.bridge-nf-call-ip6tables = 1
+	net.bridge.bridge-nf-call-iptables = 1
+	vm.swappiness=0
+	EOF",$ip_str);
+	invoke_sys_command("sysctl -p /etc/sysctl.d/k8s.conf",$ip_str);
 }
 
-#config network forward param
-sub config_net_forward_param{
-	# cat <<EOF >  /etc/sysctl.d/k8s.conf
-	# net.ipv4.ip_forward = 1
-	# net.bridge.bridge-nf-call-ip6tables = 1
-	# net.bridge.bridge-nf-call-iptables = 1
-	# vm.swappiness=0
-	# EOF
-	# sysctl --system
+#install kubeadm、kubelet、kubectl
+sub install_kubernetes{
+	my $all_ip_str = shift;
+	# config aliyun repo
+	invoke_sys_command("cat <<EOF > /etc/yum.repos.d/kubernetes.repo
+		[kubernetes]
+		name=Kubernetes
+		baseurl=https://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64
+		enabled=1
+		gpgcheck=1
+		repo_gpgcheck=1
+		gpgkey=https://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg https://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpg
+		EOF",$all_ip_str);
+	#install
+	invoke_sys_command("yum install -y kubelet kubeadm kubectl ipvsadm",$all_ip_str);
 }
+
 
 #use for invoke system command
 sub invoke_sys_command{
-	my $command = shift;
+	my ($command,$ip_str) = @_;
 
-	$log->info("start exec command: [$command]");
-	my $exec_result = `$command`;
-	$log->info("finish exec command: [$command] [$exec_result]");
+	my $bin =  "su - $default_user -c $perl_install_dir/bin/atnodes -L -u $default_user";
+
+	my $exec_command = "$bin \"$command\" $ip_str";
+
+	$log->info("start exec command: [$exec_command]");
+	my $exec_result = `$exec_command`;
+	$log->info("finish exec command: [$exec_command] [$exec_result]");
 }
 
 #create CA
