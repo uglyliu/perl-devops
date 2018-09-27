@@ -114,11 +114,13 @@ sub install_k8s_task{
 	#ssh_login($default_user,$default_pwd,$all_ip_str);
 
 	#2、all node config hostname
-	update_host_config($masterAddress,$nodeAddress,$k8sPrefix);
+	#update_host_config($masterAddress,$nodeAddress,$k8sPrefix);
+	
 	#3、all node update os config
-	#update_sys_config($all_ip_str);
+	update_sys_config($all_ip_str);
+	
 	#4、all node install docker v17.03
-	#install_docker($all_ip_str);
+	install_docker($all_ip_str);
 	#
 	#
 	$log->info("finish install k8s: $all_ip_pair");
@@ -223,22 +225,28 @@ sub update_host_config{
 #updage os config
 sub update_sys_config{
 	my $ip_str = shift;
+
+	log->debug("--------------start update os config--------------");
+
 	#disable firewalld & selinux
 	invoke_sys_command("systemctl stop firewalld && systemctl disable firewalld",$ip_str);
-	invoke_sys_command("sed -i 's/SELINUX=permissive/SELINUX=disabled/' /etc/sysconfig/selinux",$ip_str);
+	invoke_sys_command("/bin/sed -i \"s/SELINUX=permissive/SELINUX=disabled/\" /etc/sysconfig/selinux",$ip_str);
 	invoke_sys_command("setenforce 0",$ip_str);
 
 	#disable swap
 	invoke_sys_command("swapoff -a && sysctl -w vm.swappiness=0",$ip_str);
-	invoke_sys_command("sed -i '/swap.img/d' /etc/fstab",$ip_str);
+	invoke_sys_command("/bin/sed -i \"/swap.img/d\" /etc/fstab",$ip_str);
 
 	#open forward, Docker v1.13
 	invoke_sys_command("iptables -P FORWARD ACCEPT",$ip_str);
+
+	log->debug("--------------finish update os config--------------");
 }
 
 # install docker
 sub install_docker{
 	my $ip_str = shift;
+	log->debug("--------------start install Docker--------------");
 	#install last edition
 	#invoke_sys_command("curl -fsSL https://get.docker.com/ | sh",$ip_str);
 
@@ -255,11 +263,13 @@ sub install_docker{
 	vm.swappiness=0
 	EOF",$ip_str);
 	invoke_sys_command("sysctl -p /etc/sysctl.d/k8s.conf",$ip_str);
+	log->debug("--------------finish install Docker--------------");
 }
 
 #install kubeadm、kubelet、kubectl
 sub install_kubernetes{
 	my $all_ip_str = shift;
+	log->debug("--------------start install Kubernetes--------------");
 	# config aliyun repo
 	invoke_sys_command("cat <<EOF > /etc/yum.repos.d/kubernetes.repo
 		[kubernetes]
@@ -272,6 +282,8 @@ sub install_kubernetes{
 		EOF",$all_ip_str);
 	#install
 	invoke_sys_command("yum install -y kubelet kubeadm kubectl ipvsadm",$all_ip_str);
+
+	log->debug("--------------finish install Kubernetes--------------");
 }
 
 
