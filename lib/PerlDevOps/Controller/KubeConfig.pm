@@ -93,7 +93,7 @@ sub install_check{
 sub install{
 	my $self = shift;
 	my $kubeConfig = install_check($self,$self->param("id"));
-	#启动job
+	#start install job
 	$self->app->minion->enqueue(install_k8s_task => [$kubeConfig] );
 	$self->app->minion->perform_jobs;
 	$self->render();
@@ -247,20 +247,43 @@ sub update_sys_config{
 sub install_docker{
 	my $ip_str = shift;
 	$log->info("--------------start install Docker--------------");
-	#install last edition
+	#1、install last edition
 	#invoke_sys_command("curl -fsSL https://get.docker.com/ | sh",$ip_str);
 
-	#install specified version
-	invoke_sys_command("yum remove -y docker-ce docker-ce-selinux container-selinux",$ip_str);
-	invoke_sys_command("yum install -y --setopt=obsoletes=0 docker-ce-17.03.1.ce-1.el7.centos docker-ce-selinux-17.03.1.ce-1.el7.centos",$ip_str);
+	#2、install specified version 
+	# invoke_sys_command("yum remove -y docker-ce docker-ce-selinux container-selinux",$ip_str);
+	# invoke_sys_command("yum install -y yum-utils device-mapper-persistent-data lvm2",$ip_str);
+	# invoke_sys_command("yum-config-manager --enable extras",$ip_str);
+	# invoke_sys_command("sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo",$ip_str);
+	# invoke_sys_command("yum-config-manager --enable docker-ce-edge",$ip_str);
+	# invoke_sys_command("yum makecache fast",$ip_str);
+	# invoke_sys_command("yum install -y --setopt=obsoletes=0 docker-ce-17.03.1.ce-1.el7.centos docker-ce-selinux-17.03.1.ce-1.el7.centos",$ip_str);
+	
+	#3、install by rpm package
+	invoke_sys_command("curl https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-17.03.3.ce-1.el7.x86_64.rpm -o /tmp/docker-ce.rpm --progress",$ip_str);
+	invoke_sys_command("curl https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-selinux-17.03.3.ce-1.el7.noarch.rpm -o /tmp/docker-ce-selinux.rpm --progress",$ip_str);
+	invoke_sys_command("yum -y localinstall /tmp/docker-ce*.rpm",$ip_str);
+	invoke_sys_command("cat <<EOF | tee /etc/docker/daemon.json 
+		
+    {
+  		\"storage-driver\": \"devicemapper\"
+	}
+
+	EOF",$ip_str);
+	#direct-lvm config
+	#https://docs.docker.com/engine/userguide/storagedriver/device-mapper-driver/#configure-direct-lvm-mode-for-production
+	
 	#start docker
 	invoke_sys_command("systemctl enable docker && systemctl restart docker",$ip_str);
+	invoke_sys_command("ps -ef | grep docker",$ip_str);
     #config system net bridge
-    invoke_sys_command("cat <<EOF  >  /etc/sysctl.d/k8s.conf
+    invoke_sys_command("cat <<EOF | tee /etc/sysctl.d/k8s.conf 
+
     net.ipv4.ip_forward = 1
 	net.bridge.bridge-nf-call-ip6tables = 1
 	net.bridge.bridge-nf-call-iptables = 1
 	vm.swappiness=0
+
 	EOF",$ip_str);
 	invoke_sys_command("sysctl -p /etc/sysctl.d/k8s.conf",$ip_str);
 	$log->info("--------------finish install Docker--------------");
