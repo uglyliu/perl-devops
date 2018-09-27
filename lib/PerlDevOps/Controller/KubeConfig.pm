@@ -229,7 +229,7 @@ sub update_sys_config{
 	invoke_sys_command("setenforce 0",$ip_str);
 
 	#disable swap
-	invoke_sys_command("swapoff -a && sysctl -w vm.swappiness=0,"$ip_str);
+	invoke_sys_command("swapoff -a && sysctl -w vm.swappiness=0",$ip_str);
 	invoke_sys_command("sed -i '/swap.img/d' /etc/fstab",$ip_str);
 
 	#open forward, Docker v1.13
