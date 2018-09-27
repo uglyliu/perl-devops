@@ -2,6 +2,7 @@ package PerlDevOps::Controller::KubeConfig;
 use Mojo::Base 'Mojolicious::Controller';
 use Mojo::Log;
 use Expect;
+use File::Basename;
 
 
 #perl install dir
@@ -9,6 +10,8 @@ my $perl_install_dir = "/usr/local";
 
 #k8s install log，the frontend will read log content by websocket
 my $log_file = "/root/perl-devops/k8s-install.log";
+
+my $work_static_dir = "/root/perl-devops/static/";
 
 #shoud be config by config file
 my $default_user = "root";
@@ -117,7 +120,7 @@ sub install_k8s_task{
 	#update_host_config($masterAddress,$nodeAddress,$k8sPrefix);
 	
 	#3、all node update os config
-	update_sys_config($all_ip_str);
+	#update_sys_config($all_ip_str);
 	
 	#4、all node install docker v17.03
 	install_docker($all_ip_str);
@@ -260,31 +263,24 @@ sub install_docker{
 	# invoke_sys_command("yum install -y --setopt=obsoletes=0 docker-ce-17.03.1.ce-1.el7.centos docker-ce-selinux-17.03.1.ce-1.el7.centos",$ip_str);
 	
 	#3、install by rpm package
-	invoke_sys_command("curl https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-17.03.3.ce-1.el7.x86_64.rpm -o /tmp/docker-ce.rpm --progress",$ip_str);
-	invoke_sys_command("curl https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-selinux-17.03.3.ce-1.el7.noarch.rpm -o /tmp/docker-ce-selinux.rpm --progress",$ip_str);
-	invoke_sys_command("yum -y localinstall /tmp/docker-ce*.rpm",$ip_str);
-	invoke_sys_command("cat <<EOF | tee /etc/docker/daemon.json 
-		
-    {
-  		\"storage-driver\": \"devicemapper\"
+	unless (-e "$work_static_dir/docker-ce.rpm") {
+		invoke_local_command("curl https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-17.03.3.ce-1.el7.x86_64.rpm -o $work_static_dir/docker-ce.rpm --progress");
+		invoke_local_command("curl https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-selinux-17.03.3.ce-1.el7.noarch.rpm -o $work_static_dir/docker-ce-selinux.rpm --progress");
 	}
-
-	EOF",$ip_str);
+	#upload file to remote nodes
+	upload_file_to_node("$work_static_dir/docker-ce.rpm","/temp/",False,$ip_str);
+	upload_file_to_node("$work_static_dir/docker-ce-selinux.rpm","/temp/",False,$ip_str);
+	#install docker
+	invoke_sys_command("yum -y localinstall /tmp/docker-ce*.rpm",$ip_str);
+	#config daemon.json
+	upload_file_to_node("$work_static_dir/daemon.json","/etc/docker/",False,$ip_str);
 	#direct-lvm config
 	#https://docs.docker.com/engine/userguide/storagedriver/device-mapper-driver/#configure-direct-lvm-mode-for-production
-	
 	#start docker
 	invoke_sys_command("systemctl enable docker && systemctl restart docker",$ip_str);
 	invoke_sys_command("ps -ef | grep docker",$ip_str);
     #config system net bridge
-    invoke_sys_command("cat <<EOF | tee /etc/sysctl.d/k8s.conf 
-
-    net.ipv4.ip_forward = 1
-	net.bridge.bridge-nf-call-ip6tables = 1
-	net.bridge.bridge-nf-call-iptables = 1
-	vm.swappiness=0
-
-	EOF",$ip_str);
+    upload_file_to_node("$work_static_dir/k8s.conf","/etc/sysctl.d/",False,$ip_str);
 	invoke_sys_command("sysctl -p /etc/sysctl.d/k8s.conf",$ip_str);
 	$log->info("--------------finish install Docker--------------");
 }
@@ -294,6 +290,7 @@ sub install_kubernetes{
 	my $all_ip_str = shift;
 	$log->info("--------------start install Kubernetes--------------");
 	# config aliyun repo
+	# 
 	invoke_sys_command("cat <<EOF > /etc/yum.repos.d/kubernetes.repo
 		[kubernetes]
 		name=Kubernetes
@@ -309,6 +306,13 @@ sub install_kubernetes{
 	$log->info("--------------finish install Kubernetes--------------");
 }
 
+#invoke local command
+sub invoke_local_command{
+	my $command = shift;
+	$log->info("start exec local command: [$command]");
+	my $exec_result = `$command`;
+	$log->info("finish exec local command: [$command] [$exec_result]");
+}
 
 #use for invoke system command
 sub invoke_sys_command{
@@ -320,6 +324,28 @@ sub invoke_sys_command{
 	my $exec_result = `$exec_command`;
 	$log->info("finish exec command: [$exec_command] [$exec_result]");
 }
+
+#upload file to node dir
+sub upload_file_to_node{
+	my($full_name,$targetdir,$ispack,$ipstr) = @_;
+	#get fileName
+	my $filename = basename($full_name);
+	#create remote host targetdir
+	invoke_sys_command("mkdir $targetdir;");
+	#exec upload file
+	my $upload_command = "su - $default_user -c \"$perl_install_dir/bin/tonodes -L $full_name -u $default_user $ipstr:$targetdir/\"";
+
+	$log->info("start exec upload file command: [$upload_command]");
+	my $exec_result = `$upload_command`;
+	$log->info("finish exec upload file command: [$upload_command] [$exec_result]");
+	# ispack
+	if ($ispack eq TRUE) {
+		$log->info("start exec unpack command: [$upload_command]");
+		invoke_sys_command("/bin/tar -xzvf $targetdir/$filename -C $targetdir/;",$ipstr);
+		$log->info("start exec unpack command: [$upload_command]");
+	}
+}
+
 
 #create CA
 sub create_ca{
