@@ -226,7 +226,7 @@ sub update_host_config{
 sub update_sys_config{
 	my $ip_str = shift;
 
-	log->debug("--------------start update os config--------------");
+	$log->info("--------------start update os config--------------");
 
 	#disable firewalld & selinux
 	invoke_sys_command("systemctl stop firewalld && systemctl disable firewalld",$ip_str);
@@ -240,13 +240,13 @@ sub update_sys_config{
 	#open forward, Docker v1.13
 	invoke_sys_command("iptables -P FORWARD ACCEPT",$ip_str);
 
-	log->debug("--------------finish update os config--------------");
+	$log->info("--------------finish update os config--------------");
 }
 
 # install docker
 sub install_docker{
 	my $ip_str = shift;
-	log->debug("--------------start install Docker--------------");
+	$log->info("--------------start install Docker--------------");
 	#install last edition
 	#invoke_sys_command("curl -fsSL https://get.docker.com/ | sh",$ip_str);
 
@@ -263,13 +263,13 @@ sub install_docker{
 	vm.swappiness=0
 	EOF",$ip_str);
 	invoke_sys_command("sysctl -p /etc/sysctl.d/k8s.conf",$ip_str);
-	log->debug("--------------finish install Docker--------------");
+	$log->info("--------------finish install Docker--------------");
 }
 
 #install kubeadm、kubelet、kubectl
 sub install_kubernetes{
 	my $all_ip_str = shift;
-	log->debug("--------------start install Kubernetes--------------");
+	$log->info("--------------start install Kubernetes--------------");
 	# config aliyun repo
 	invoke_sys_command("cat <<EOF > /etc/yum.repos.d/kubernetes.repo
 		[kubernetes]
@@ -283,7 +283,7 @@ sub install_kubernetes{
 	#install
 	invoke_sys_command("yum install -y kubelet kubeadm kubectl ipvsadm",$all_ip_str);
 
-	log->debug("--------------finish install Kubernetes--------------");
+	$log->info("--------------finish install Kubernetes--------------");
 }
 
 
