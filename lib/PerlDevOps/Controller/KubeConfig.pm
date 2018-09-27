@@ -11,7 +11,7 @@ my $perl_install_dir = "/usr/local";
 #k8s install log，the frontend will read log content by websocket
 my $log_file = "/root/perl-devops/k8s-install.log";
 
-my $work_static_dir = "/root/perl-devops/static/";
+my $work_static_dir = "/root/perl-devops/static";
 
 #shoud be config by config file
 my $default_user = "root";
@@ -268,19 +268,19 @@ sub install_docker{
 		invoke_local_command("curl https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-selinux-17.03.3.ce-1.el7.noarch.rpm -o $work_static_dir/docker-ce-selinux.rpm --progress");
 	}
 	#upload file to remote nodes
-	upload_file_to_node("$work_static_dir/docker-ce.rpm","/temp/",0,$ip_str);
-	upload_file_to_node("$work_static_dir/docker-ce-selinux.rpm","/temp/",0,$ip_str);
+	upload_file_to_node("$work_static_dir/docker-ce.rpm","/temp",0,$ip_str);
+	upload_file_to_node("$work_static_dir/docker-ce-selinux.rpm","/temp",0,$ip_str);
 	#install docker
-	invoke_sys_command("yum -y localinstall /tmp/docker-ce*.rpm",$ip_str);
+	invoke_sys_command("yum -y localinstall /temp/docker-ce*.rpm",$ip_str);
 	#config daemon.json
-	upload_file_to_node("$work_static_dir/daemon.json","/etc/docker/",0,$ip_str);
+	upload_file_to_node("$work_static_dir/daemon.json","/etc/docker",0,$ip_str);
 	#direct-lvm config
 	#https://docs.docker.com/engine/userguide/storagedriver/device-mapper-driver/#configure-direct-lvm-mode-for-production
 	#start docker
 	invoke_sys_command("systemctl enable docker && systemctl restart docker",$ip_str);
 	invoke_sys_command("ps -ef | grep docker",$ip_str);
     #config system net bridge
-    upload_file_to_node("$work_static_dir/k8s.conf","/etc/sysctl.d/",0,$ip_str);
+    upload_file_to_node("$work_static_dir/k8s.conf","/etc/sysctl.d",0,$ip_str);
 	invoke_sys_command("sysctl -p /etc/sysctl.d/k8s.conf",$ip_str);
 	$log->info("--------------finish install Docker--------------");
 }
@@ -318,7 +318,7 @@ sub invoke_local_command{
 sub invoke_sys_command{
 	my ($command,$ip_str) = @_;
 
-	my $exec_command = "su - $default_user -c '\"$perl_install_dir\"/bin/atnodes -L -u $default_user \"$command\" $ip_str'";
+	my $exec_command = "su - $default_user -c '\"$perl_install_dir\"/bin/atnodes -L -u $default_user \"$command\" \"$ip_str\"'";
 
 	$log->info("start exec command: [$exec_command]");
 	my $exec_result = `$exec_command`;
@@ -331,7 +331,7 @@ sub upload_file_to_node{
 	#get fileName
 	my $filename = basename($full_name);
 	#create remote host targetdir
-	invoke_sys_command("mkdir $targetdir;");
+	invoke_sys_command("mkdir $targetdir;",$ipstr);
 	#exec upload file
 	my $upload_command = "su - $default_user -c \"$perl_install_dir/bin/tonodes -L $full_name -u $default_user $ipstr:$targetdir/\"";
 
