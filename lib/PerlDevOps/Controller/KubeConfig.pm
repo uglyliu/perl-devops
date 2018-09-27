@@ -123,9 +123,10 @@ sub install_k8s_task{
 	#update_sys_config($all_ip_str);
 	
 	#4、all node install docker v17.03
-	install_docker($all_ip_str);
-	#
-	#
+	#install_docker($all_ip_str);
+	
+	#5、all node install kubernetes
+	install_kubernetes($all_ip_str);
 	$log->info("finish install k8s: $all_ip_pair");
 }
 
@@ -239,7 +240,11 @@ sub update_sys_config{
 	#disable swap
 	invoke_sys_command("swapoff -a && sysctl -w vm.swappiness=0",$ip_str);
 	invoke_sys_command("/bin/sed -i \"/swap.img/d\" /etc/fstab",$ip_str);
-
+	#Redhat
+	#invoke_sys_command("/bin/sed -i \"s/\/dev\/mapper\/rhel-swap/\#\/dev\/mapper\/rhel-swap/g\" /etc/fstab",$ip_str);
+	#Centos
+	invoke_sys_command("/bin/sed -i \"s/\/dev\/mapper\/centos-swap/\#\/dev\/mapper\/centos-swap/g\" /etc/fstab",$ip_str);
+	invoke_sys_command("mount -a",$ip_str);
 	#open forward, Docker v1.13
 	invoke_sys_command("iptables -P FORWARD ACCEPT",$ip_str);
 
@@ -287,23 +292,50 @@ sub install_docker{
 
 #install kubeadm、kubelet、kubectl
 sub install_kubernetes{
-	my $all_ip_str = shift;
-	$log->info("--------------start install Kubernetes--------------");
-	# config aliyun repo
-	# 
-	invoke_sys_command("cat <<EOF > /etc/yum.repos.d/kubernetes.repo
-		[kubernetes]
-		name=Kubernetes
-		baseurl=https://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64
-		enabled=1
-		gpgcheck=1
-		repo_gpgcheck=1
-		gpgkey=https://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg https://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpg
-		EOF",$all_ip_str);
-	#install
-	invoke_sys_command("yum install -y kubelet kubeadm kubectl ipvsadm",$all_ip_str);
+	my ($all_ip_str,$master_ip_str) = @_;
+	$log->info("-------------- start install Kubernetes --------------");
+	unless (-e "$work_static_dir/kubelet") {
+		invoke_local_command("curl https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubelet -o $work_static_dir/kubelet --progress");
+	}
+	#master node must install kubectl
+	unless (-e "$work_static_dir/kubectl") {
+		invoke_local_command("curl https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubectl -o $work_static_dir/kubectl --progress");
+	}
+	unless (-e "$work_static_dir/cni-plugins-amd64-v0.7.1.tgz") {
+		invoke_local_command("curl https://github.com/containernetworking/plugins/releases/download/v0.7.1/cni-plugins-amd64-v0.7.1.tgz -o $work_static_dir/cni-plugins-amd64-v0.7.1.tgz --progress");
+	}
+	unless (-e "$work_static_dir/cfssl") {
+		invoke_local_command("curl https://pkg.cfssl.org/R1.2/cfssl_linux-amd64 -o $work_static_dir/cfssl --progress");
+	}
+	unless (-e "$work_static_dir/cfssljson") {
+		invoke_local_command("curl https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64 -o $work_static_dir/cfssljson --progress");
+	}
 
-	$log->info("--------------finish install Kubernetes--------------");
+	#upload kubelet to all node & chmod +x /usr/local/bin/kubelet
+	upload_file_to_node("$work_static_dir/kubelet","/usr/local/bin",0,$all_ip_str);
+	invoke_sys_command("chmod +x /usr/local/bin/kubelet",$all_ip_str);
+	
+	#upload kubectl to all master node & chmod +x /usr/local/bin/kubectl
+	upload_file_to_node("$work_static_dir/kubectl","/usr/local/bin",0,$master_ip_str);
+	invoke_sys_command("chmod +x /usr/local/bin/kubectl",$master_ip_str);
+	
+	#upload CNI to all node & unpack
+	upload_file_to_node("$work_static_dir/cni-plugins-amd64-v0.7.1.tgz","/opt/cni/bin",1,$all_ip_str);
+	
+	#m1 node need intall cfssl,use for create CA and TLS
+	invoke_local_command("cp -n $work_static_dir/cfssl /usr/local/bin/");
+	invoke_local_command("cp -n $work_static_dir/cfssljson /usr/local/bin/");
+	invoke_local_command("chmod +x /usr/local/bin/cfssl /usr/local/bin/cfssljson");
+
+	$log->info("-------------- finish download k8s file, start config CA --------------");
+
+	#download k8s-manual-files
+	invoke_local_command("git clone https://github.com/kairen/k8s-manual-files.git ~/k8s-manual-files");
+
+	invoke_local_command("mkdir -p /etc/etcd/ssl");
+	invoke_local_command("cfssl gencert -initca etcd-ca-csr.json | cfssljson -bare /etc/etcd/ssl/etcd-ca");
+
+	$log->info("-------------- finish install Kubernetes --------------");
 }
 
 #invoke local command
@@ -326,12 +358,14 @@ sub invoke_sys_command{
 }
 
 #upload file to node dir
+# $full_name: current file full path filename: /root/perl-devops/static/tomcat.tar
+# $targetdir: will upload targetNode pathName: /opt/tomcat
 sub upload_file_to_node{
 	my($full_name,$targetdir,$ispack,$ipstr) = @_;
 	#get fileName
 	my $filename = basename($full_name);
 	#create remote host targetdir
-	invoke_sys_command("mkdir $targetdir;",$ipstr);
+	invoke_sys_command("mkdir -p $targetdir;",$ipstr);
 	#exec upload file
 	my $upload_command = "su - $default_user -c \"$perl_install_dir/bin/tonodes -L $full_name -u $default_user $ipstr:$targetdir/\"";
 
