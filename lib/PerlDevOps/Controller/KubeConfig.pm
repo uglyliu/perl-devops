@@ -116,9 +116,9 @@ sub install_k8s_task{
 	#2、all node config hostname
 	update_host_config($masterAddress,$nodeAddress,$k8sPrefix);
 	#3、all node update os config
-	update_sys_config($all_ip_str);
+	#update_sys_config($all_ip_str);
 	#4、all node install docker v17.03
-	install_docker($all_ip_str);
+	#install_docker($all_ip_str);
 	#
 	#
 	$log->info("finish install k8s: $all_ip_pair");
