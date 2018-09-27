@@ -279,7 +279,7 @@ sub install_kubernetes{
 sub invoke_sys_command{
 	my ($command,$ip_str) = @_;
 
-	my $exec_command = "su - $default_user -c \"$perl_install_dir/bin/atnodes -L -u $default_user \"$command\" $ip_str\"";
+	my $exec_command = "su - $default_user -c '\"$perl_install_dir\"/bin/atnodes -L -u $default_user \"$command\" $ip_str'";
 
 	$log->info("start exec command: [$exec_command]");
 	my $exec_result = `$exec_command`;
