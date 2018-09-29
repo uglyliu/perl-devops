@@ -496,8 +496,18 @@ sub install_kubernetes{
     	my $master = $master_host_name.$m_ip;
 		check_file(qw(kubelet-$master-key.pem kubelet-$master.pem), $k8s_ca_dir);
     }
-    ## upload kubelet CN to master node
-    
+    ## upload kubelet CN to all  master node
+    foreach my $m_ip (@$master_ip_array){
+      upload_file_to_node("$k8s_ca_dir/ca.pem",$k8s_ca_dir,0,$m_ip);
+      upload_file_to_node("$k8s_ca_dir/kubelet-$m_ip-key.pem",$k8s_ca_dir,0,$m_ip);
+      upload_file_to_node("k8s_ca_dir/kubelet-$m_ip.pem",$k8s_ca_dir,0,$m_ip);
+      invoke_local_command("rm -rf $k8s_ca_dir/kubelet-$m_ip-key.pem”);
+      invoke_local_command("rm -rf $k8s_ca_dir/kubelet-$m_ip.pem"); 
+    }
+      
+
+
+  
     #
     #
   
