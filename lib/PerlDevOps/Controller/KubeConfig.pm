@@ -130,7 +130,7 @@ sub install_k8s_task{
 	
 	#5、all node install kubernetes
 	download_kubernetes($all_ip_str,$master_ip_str,$kubeConfig);
-	install_kubernetes($all_ip_str,$master_ip_str,$master_ip_array,$kubeConfig);
+	#install_kubernetes($all_ip_str,$master_ip_str,$master_ip_array,$kubeConfig);
 
 	$log->info("finish install k8s: $all_ip_pair");
 }
@@ -345,8 +345,7 @@ sub install_kubernetes{
 	my ($all_ip_str,$master_ip_str,$master_ip_array,$kubeConfig) = @_;
 	$log->info("--------------start config k8s CA --------------");
 
-	#download k8s-manual-files
-	invoke_local_command("git clone https://github.com/kairen/k8s-manual-files.git ~/k8s-manual-files");
+	
 	
 	#config etcd CA
 	my $etcd_ca_dir = $kubeConfig->{"etcd_ca_dir"}; 
@@ -496,21 +495,62 @@ sub install_kubernetes{
     	my $master = $master_host_name.$m_ip;
 		check_file(qw(kubelet-$master-key.pem kubelet-$master.pem), $k8s_ca_dir);
     }
-    ## upload kubelet CN to all  master node
+    ### upload kubelet CN to all master node
     foreach my $m_ip (@$master_ip_array){
+      my $master = $master_host_name.$m_ip;
       upload_file_to_node("$k8s_ca_dir/ca.pem",$k8s_ca_dir,0,$m_ip);
-      upload_file_to_node("$k8s_ca_dir/kubelet-$m_ip-key.pem",$k8s_ca_dir,0,$m_ip);
-      upload_file_to_node("k8s_ca_dir/kubelet-$m_ip.pem",$k8s_ca_dir,0,$m_ip);
-      invoke_local_command("rm -rf $k8s_ca_dir/kubelet-$m_ip-key.pem”);
-      invoke_local_command("rm -rf $k8s_ca_dir/kubelet-$m_ip.pem"); 
+      upload_file_to_node("$k8s_ca_dir/kubelet-$master-key.pem",$k8s_ca_dir,0,$m_ip);
+      upload_file_to_node("$k8s_ca_dir/kubelet-$master.pem",$k8s_ca_dir,0,$m_ip);
+      #
+      invoke_local_command("rm -rf $k8s_ca_dir/kubelet-$master-key.pem $k8s_ca_dir/kubelet-$master.pem");
     }
-      
+     
+    #create kubeconfig for all master node by kubectl 
+    foreach my $m_ip (@$master_ip_array){
+      my $master = $master_host_name.$m_ip;
+      invoke_sys_command("cd $k8s_ca_dir && \ 
+	      kubectl config set-cluster kubernetes \ 
+	        --certificate-authority=$k8s_ca_dir/ca.pem \ 
+	        --embed-certs=true \ 
+	        --server=$kube_api_server \ 
+	        --kubeconfig=$k8s_dir/kubelet.conf && \ 
+	      kubectl config set-credentials system:node:$master \ 
+	        --client-certificate=$k8s_ca_dir/kubelet.pem \ 
+	        --client-key=$k8s_ca_dir/kubelet-key.pem \ 
+	        --embed-certs=true \ 
+	        --kubeconfig=$k8s_dir/kubelet.conf && \ 
+	      kubectl config set-context system:node:$master@kubernetes \ 
+	        --cluster=kubernetes \ 
+	        --user=system:node:$master \ 
+	        --kubeconfig=$k8s_dir/kubelet.conf && \ 
+	      kubectl config use-context system:node:$master@kubernetes \ 
+	        --kubeconfig=$k8s_dir/kubelet.conf",$m_ip);
+    }
 
+    #Service Account Key
+    invoke_local_command("openssl genrsa -out $k8s_ca_dir/sa.key 2048");
+    invoke_local_command("openssl rsa -in $k8s_ca_dir/sa.key -pubout -out $k8s_ca_dir/sa.pub");
+    check_file(qw(sa.key sa.pub), $k8s_ca_dir);
+    
 
-  
-    #
-    #
-  
+    #delete all no useful files
+    $log->warn("will delete file list [$k8s_ca_dir/*.csr] [$k8s_ca_dir/scheduler*.pem] [$k8s_ca_dir/controller-manager*.pem] [$k8s_ca_dir/admin*.pem] [$k8s_ca_dir/kubelet*.pem]");
+    invoke_local_command("rm -rf $k8s_ca_dir/*.csr \ 
+    $k8s_ca_dir/scheduler*.pem \ 
+    $k8s_ca_dir/controller-manager*.pem \ 
+    $k8s_ca_dir/admin*.pem \ 
+    $k8s_ca_dir/kubelet*.pem");
+
+    #upload to all master node
+  	upload_file_to_node("$k8s_ca_dir/*","$k8s_ca_dir",0,$master_ip_str);
+
+  	#scp kubeconfig to all master node
+  	upload_file_to_node("$k8s_dir/admin.conf","$k8s_dir",0,$master_ip_str);
+  	upload_file_to_node("$k8s_dir/controller-manager.conf","$k8s_dir",0,$master_ip_str);
+  	upload_file_to_node("$k8s_dir/scheduler.conf","$k8s_dir",0,$master_ip_str);
+
+  	#download k8s-manual-files
+	invoke_local_command("git clone https://github.com/kairen/k8s-manual-files.git ~/k8s-manual-files");
     #
 	$log->info("-------------- finish config k8s CA --------------");
 }
@@ -521,7 +561,7 @@ sub check_file{
 
 	foreach my $fileName (@$file_list){
 		unless (-e "$file_dir/$fileName") {
-			$log->error("check error........ $file_dir/$fileName not exist .....");
+			$log->error("check_file error........ $file_dir/$fileName not exist .....");
 		}
 	}
 }
@@ -534,7 +574,7 @@ sub invoke_local_command{
 	$log->info("finish exec local command: [$command] [$exec_result]");
 }
 
-#use for invoke system command
+#use for invoke remote system command
 sub invoke_sys_command{
 	my ($command,$ip_str) = @_;
 
