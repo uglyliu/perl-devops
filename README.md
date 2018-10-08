@@ -58,3 +58,26 @@ https://kiwiirc.com/nextclient/#irc://irc.freenode.net/mojo?nick=guest-?
 #### #history
 https://freenode.logbot.info/mojo/20180925
 
+
+
+#### 说明
+程序会自动下载以下工具包到/root/perl-devops/tmp临时目录
+```perl
+https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-17.03.3.ce-1.el7.x86_64.rpm (docker-ce.rpm)
+
+https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-selinux-17.03.3.ce-1.el7.noarch.rpm (docker-ce-selinux.rpm)  
+
+https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubelet
+https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubectl
+
+https://github.com/containernetworking/plugins/releases/download/v0.7.1/cni-plugins-amd64-v0.7.1.tgz 
+
+https://pkg.cfssl.org/R1.2/cfssl_linux-amd64 (cfssl)
+https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64 (cfssljson)
+
+git clone https://github.com/kairen/k8s-manual-files.git ~/k8s-manual-files
+```
+
+
+
+

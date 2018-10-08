@@ -12,12 +12,14 @@ my $perl_install_dir = "/usr/local";
 my $log_file = "/root/perl-devops/k8s-install.log";
 
 my $work_static_dir = "/root/perl-devops/static";
-
+my $tmp_dir = "/root/perl-devops/tmp";
 #shoud be config by config file
 my $default_user = "root";
 my $default_pwd = "root";
 
-my $pki_dir = "~/k8s-manual-files/pki";
+
+my $k8s_manual_files = "/root/k8s-manual-files"; 
+my $pki_dir = "$k8s_manual_files/pki";
 
 my $log = Mojo::Log->new(path => "$log_file");
 
@@ -131,8 +133,8 @@ sub install_k8s_task{
 	#install_docker($all_ip_str);
 	
 	#5、all node install kubernetes
-	download_kubernetes($all_ip_str,$master_ip_str,$kubeConfig);
-	#install_kubernetes($all_ip_str,$master_ip_str,$master_ip_array,$kubeConfig);
+	#download_kubernetes($all_ip_str,$master_ip_str,$kubeConfig);
+	install_kubernetes($all_ip_str,$master_ip_str,$master_ip_array,$kubeConfig);
 
 	#install_component($master_ip_str);
 
@@ -283,13 +285,13 @@ sub install_docker{
 	# invoke_sys_command("yum install -y --setopt=obsoletes=0 docker-ce-17.03.1.ce-1.el7.centos docker-ce-selinux-17.03.1.ce-1.el7.centos",$ip_str);
 	
 	#3、install by rpm package
-	unless (-e "$work_static_dir/docker-ce.rpm") {
-		invoke_local_command("curl https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-17.03.3.ce-1.el7.x86_64.rpm -o $work_static_dir/docker-ce.rpm --progress");
-		invoke_local_command("curl https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-selinux-17.03.3.ce-1.el7.noarch.rpm -o $work_static_dir/docker-ce-selinux.rpm --progress");
+	unless (-e "$tmp_dir/docker-ce.rpm") {
+		invoke_local_command("curl https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-17.03.3.ce-1.el7.x86_64.rpm -o $tmp_dir/docker-ce.rpm --progress");
+		invoke_local_command("curl https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-selinux-17.03.3.ce-1.el7.noarch.rpm -o $tmp_dir/docker-ce-selinux.rpm --progress");
 	}
 	#upload file to remote nodes
-	upload_file_to_node("$work_static_dir/docker-ce.rpm","/temp",0,$ip_str);
-	upload_file_to_node("$work_static_dir/docker-ce-selinux.rpm","/temp",0,$ip_str);
+	upload_file_to_node("$tmp_dir/docker-ce.rpm","/temp",0,$ip_str);
+	upload_file_to_node("$tmp_dir/docker-ce-selinux.rpm","/temp",0,$ip_str);
 	#install docker
 	invoke_sys_command("yum -y localinstall /temp/docker-ce*.rpm",$ip_str);
 	#config daemon.json
@@ -309,37 +311,37 @@ sub install_docker{
 sub download_kubernetes{
 	my ($all_ip_str,$master_ip_str) = @_;
 	$log->info("-------------- start download k8s file --------------");
-	unless (-e "$work_static_dir/kubelet") {
-		invoke_local_command("curl https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubelet -o $work_static_dir/kubelet --progress");
+	unless (-e "$tmp_dir/kubelet") {
+		invoke_local_command("curl https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubelet -o $tmp_dir/kubelet --progress");
 	}
 	#master node must install kubectl
-	unless (-e "$work_static_dir/kubectl") {
-		invoke_local_command("curl https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubectl -o $work_static_dir/kubectl --progress");
+	unless (-e "$tmp_dir/kubectl") {
+		invoke_local_command("curl https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubectl -o $tmp_dir/kubectl --progress");
 	}
-	unless (-e "$work_static_dir/cni-plugins-amd64-v0.7.1.tgz") {
-		invoke_local_command("curl https://github.com/containernetworking/plugins/releases/download/v0.7.1/cni-plugins-amd64-v0.7.1.tgz -o $work_static_dir/cni-plugins-amd64-v0.7.1.tgz --progress");
+	unless (-e "$tmp_dir/cni-plugins-amd64-v0.7.1.tgz") {
+		invoke_local_command("curl https://github.com/containernetworking/plugins/releases/download/v0.7.1/cni-plugins-amd64-v0.7.1.tgz -o $tmp_dir/cni-plugins-amd64-v0.7.1.tgz --progress");
 	}
-	unless (-e "$work_static_dir/cfssl") {
-		invoke_local_command("curl https://pkg.cfssl.org/R1.2/cfssl_linux-amd64 -o $work_static_dir/cfssl --progress");
+	unless (-e "$tmp_dir/cfssl") {
+		invoke_local_command("curl https://pkg.cfssl.org/R1.2/cfssl_linux-amd64 -o $tmp_dir/cfssl --progress");
 	}
-	unless (-e "$work_static_dir/cfssljson") {
-		invoke_local_command("curl https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64 -o $work_static_dir/cfssljson --progress");
+	unless (-e "$tmp_dir/cfssljson") {
+		invoke_local_command("curl https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64 -o $tmp_dir/cfssljson --progress");
 	}
 
 	#upload kubelet to all node & chmod +x /usr/local/bin/kubelet
-	upload_file_to_node("$work_static_dir/kubelet","/usr/local/bin",0,$all_ip_str);
+	upload_file_to_node("$tmp_dir/kubelet","/usr/local/bin/",0,$all_ip_str);
 	invoke_sys_command("chmod +x /usr/local/bin/kubelet",$all_ip_str);
 	
 	#upload kubectl to all master node & chmod +x /usr/local/bin/kubectl
-	upload_file_to_node("$work_static_dir/kubectl","/usr/local/bin",0,$master_ip_str);
+	upload_file_to_node("$tmp_dir/kubectl","/usr/local/bin/",0,$master_ip_str);
 	invoke_sys_command("chmod +x /usr/local/bin/kubectl",$master_ip_str);
 	
 	#upload CNI to all node & unpack
-	upload_file_to_node("$work_static_dir/cni-plugins-amd64-v0.7.1.tgz","/opt/cni/bin",1,$all_ip_str);
+	upload_file_to_node("$tmp_dir/cni-plugins-amd64-v0.7.1.tgz","/opt/cni/bin",1,$all_ip_str);
 	
 	#m1 node need intall cfssl,use for create CA and TLS
-	invoke_local_command("cp -n $work_static_dir/cfssl /usr/local/bin/");
-	invoke_local_command("cp -n $work_static_dir/cfssljson /usr/local/bin/");
+	invoke_local_command("cp -n $tmp_dir/cfssl /usr/local/bin/");
+	invoke_local_command("cp -n $tmp_dir/cfssljson /usr/local/bin/");
 	invoke_local_command("chmod +x /usr/local/bin/cfssl /usr/local/bin/cfssljson");
 
 	$log->info("-------------- finish download k8s file --------------");
@@ -350,15 +352,19 @@ sub install_kubernetes{
 	$log->info("--------------start config k8s CA --------------");
 
 	#download k8s-manual-files
-	invoke_local_command("git clone https://github.com/kairen/k8s-manual-files.git ~/k8s-manual-files");
-
+	unless(-d $pki_dir){
+		invoke_local_command("git clone https://github.com/kairen/k8s-manual-files.git $k8s_manual_files");
+	}
+	
 	#config etcd CA
 	my $etcd_ca_dir = $kubeConfig->{"etcd_ca_dir"}; 
 	invoke_local_command("mkdir -p $etcd_ca_dir");
 	invoke_local_command("cfssl gencert -initca $pki_dir/etcd-ca-csr.json | cfssljson -bare $etcd_ca_dir/etcd-ca");
 	my $current_master_ip_str = replace_str($master_ip_str);
 	invoke_local_command("cfssl gencert -ca=$etcd_ca_dir/etcd-ca.pem -ca-key=$etcd_ca_dir/etcd-ca-key.pem -config=$pki_dir/ca-config.json -hostname=127.0.0.1,$current_master_ip_str -profile=kubernetes $pki_dir/etcd-csr.json | cfssljson -bare $etcd_ca_dir/etcd");
-	check_file(qw(etcd-ca-key.pem etcd-ca.pem etcd-key.pem etcd.pem),$etcd_ca_dir);
+	my @etcd_file = qw(etcd-ca-key.pem etcd-ca.pem etcd-key.pem etcd.pem);
+	check_file(\@etcd_file,$etcd_ca_dir);
+	$log->info("will delete temp file [$etcd_ca_dir/*.csr]");
 	invoke_local_command("rm -rf $etcd_ca_dir/*.csr");
 	##scp all master node
 	upload_file_to_node("$etcd_ca_dir/etcd*.pem","$etcd_ca_dir",0,$master_ip_str);
@@ -374,130 +380,71 @@ sub install_kubernetes{
 	my $k8s_ca_dir = "$k8s_dir/pki"; 
 	invoke_local_command("mkdir -p $k8s_ca_dir");
 	invoke_local_command("cfssl gencert -initca $pki_dir/ca-csr.json | cfssljson -bare $k8s_ca_dir/ca");
-	check_file(qw(ca-key.pem ca.pem),$k8s_ca_dir);
+	my @api_vip_file = qw(ca-key.pem ca.pem);
+	check_file(\@api_vip_file,$k8s_ca_dir);
 	##create TLS for Kubernetes API Server
 	##kubernetes.default: is service domain name by k8s auto create on default namespace
-	invoke_local_command("cfssl gencert \ 
-	-ca=$k8s_ca_dir/ca.pem \ 
-	-ca-key=$k8s_ca_dir/ca-key.pem \ 
-	-config=$pki_dir/ca-config.json \ 
-	-hostname=$cluster_ip,$kube_api_ip,127.0.0.1,kubernetes.default \ 
-	-profile=kubernetes \ 
-	$pki_dir/apiserver-csr.json | cfssljson -bare $k8s_ca_dir/apiserver");
-	check_file(qw(apiserver-key.pem apiserver.pem),$k8s_ca_dir);
+	$log->info("...........create TLS for Kubernetes API Server...........");
+	invoke_local_command("cfssl gencert -ca=$k8s_ca_dir/ca.pem -ca-key=$k8s_ca_dir/ca-key.pem -config=$pki_dir/ca-config.json -hostname=$cluster_ip,$kube_api_ip,127.0.0.1,kubernetes.default -profile=kubernetes $pki_dir/apiserver-csr.json | cfssljson -bare $k8s_ca_dir/apiserver");
+	my @api_server_file = qw(apiserver-key.pem apiserver.pem);
+	check_file(\@api_server_file,$k8s_ca_dir);
 
 	## config Authenticating Proxy CA and CN
 	invoke_local_command("cfssl gencert -initca $pki_dir/front-proxy-ca-csr.json | cfssljson -bare $k8s_ca_dir/front-proxy-ca");
-	check_file(qw(front-proxy-ca-key.pem front-proxy-ca.pem),$k8s_ca_dir);
+	my @proxy_file = qw(front-proxy-ca-key.pem front-proxy-ca.pem);
+	check_file(\@proxy_file,$k8s_ca_dir);
 
-	invoke_local_command("cfssl gencert \ 
-  	-ca=$k8s_ca_dir/front-proxy-ca.pem \ 
- 	-ca-key=$k8s_ca_dir/front-proxy-ca-key.pem \ 
-  	-config=$pki_dir/ca-config.json \ 
-  	-profile=kubernetes \ 
-  	$pki_dir/front-proxy-client-csr.json | cfssljson -bare $k8s_ca_dir/front-proxy-client");
-	check_file(qw(front-proxy-client-key.pem front-proxy-client.pem),$k8s_ca_dir);
+	invoke_local_command("cfssl gencert -ca=$k8s_ca_dir/front-proxy-ca.pem -ca-key=$k8s_ca_dir/front-proxy-ca-key.pem -config=$pki_dir/ca-config.json -profile=kubernetes $pki_dir/front-proxy-client-csr.json | cfssljson -bare $k8s_ca_dir/front-proxy-client");
+  	my @front_proxy_file = qw(front-proxy-client-key.pem front-proxy-client.pem);
+	check_file(\@front_proxy_file,$k8s_ca_dir);
 
 	## config Controller Manager CN
-	invoke_local_command("cfssl gencert \ 
-  	-ca=$k8s_ca_dir/ca.pem \ 
-  	-ca-key=$k8s_ca_dir/ca-key.pem \ 
-  	-config=$pki_dir/ca-config.json \ 
-  	-profile=kubernetes \ 
-  	$pki_dir/manager-csr.json | cfssljson -bare $k8s_ca_dir/controller-manager");
-	check_file(qw(controller-manager-key.pem  controller-manager.pem),$k8s_ca_dir);
+	invoke_local_command("cfssl gencert -ca=$k8s_ca_dir/ca.pem -ca-key=$k8s_ca_dir/ca-key.pem -config=$pki_dir/ca-config.json -profile=kubernetes $pki_dir/manager-csr.json | cfssljson -bare $k8s_ca_dir/controller-manager");
+  	my @controller_file = qw(controller-manager-key.pem  controller-manager.pem);
+	check_file(\@controller_file,$k8s_ca_dir);
 	
 	###config kubeconfig
-	invoke_local_command("kubectl config set-cluster kubernetes \ 
-    --certificate-authority=$k8s_dir/ca.pem \ 
-    --embed-certs=true \ 
-    --server=$kube_api_server \ 
-    --kubeconfig=$k8s_dir/controller-manager.conf");
+	invoke_local_command("kubectl config set-cluster kubernetes --certificate-authority=$k8s_dir/ca.pem --embed-certs=true --server=$kube_api_server --kubeconfig=$k8s_dir/controller-manager.conf");
 	
-	invoke_local_command("kubectl config set-credentials system:kube-controller-manager \ 
-    --client-certificate=$k8s_ca_dir/controller-manager.pem \ 
-    --client-key=$k8s_ca_dir/controller-manager-key.pem \ 
-    --embed-certs=true \ 
-    --kubeconfig=$k8s_dir/controller-manager.conf");
+	invoke_local_command("kubectl config set-credentials system:kube-controller-manager --client-certificate=$k8s_ca_dir/controller-manager.pem --client-key=$k8s_ca_dir/controller-manager-key.pem --embed-certs=true --kubeconfig=$k8s_dir/controller-manager.conf");
 	
-	invoke_local_command("kubectl config set-context system:kube-controller-manager\@kubernetes \ 
-    --cluster=kubernetes \ 
-    --user=system:kube-controller-manager \ 
-    --kubeconfig=$k8s_dir/controller-manager.conf");
+	invoke_local_command("kubectl config set-context system:kube-controller-manager\@kubernetes --cluster=kubernetes --user=system:kube-controller-manager --kubeconfig=$k8s_dir/controller-manager.conf");
 
-    invoke_local_command("kubectl config use-context system:kube-controller-manager\@kubernetes \ 
-    --kubeconfig=$k8s_dir/controller-manager.conf");
+    invoke_local_command("kubectl config use-context system:kube-controller-manager\@kubernetes --kubeconfig=$k8s_dir/controller-manager.conf");
 
     #config Scheduler CA and CN
-    invoke_local_command("cfssl gencert \ 
-  	-ca=$k8s_ca_dir/ca.pem \ 
-  	-ca-key=$k8s_ca_dir/ca-key.pem \ 
-  	-config=$pki_dir/ca-config.json \ 
-  	-profile=kubernetes \ 
-  	$pki_dir/cheduler-csr.json | cfssljson -bare $k8s_ca_dir/scheduler");
-    check_file(qw(scheduler-key.pem scheduler.pem),$k8s_ca_dir);
+    invoke_local_command("cfssl gencert -ca=$k8s_ca_dir/ca.pem -ca-key=$k8s_ca_dir/ca-key.pem -config=$pki_dir/ca-config.json -profile=kubernetes $pki_dir/cheduler-csr.json | cfssljson -bare $k8s_ca_dir/scheduler");
+  	my @schedule_file = qw(scheduler-key.pem scheduler.pem);
+    check_file(\@schedule_file,$k8s_ca_dir);
     ## config Scheduler's kubeconfig
-    invoke_local_command("kubectl config set-cluster kubernetes \ 
-    --certificate-authority=$k8s_ca_dir/ca.pem \ 
-    --embed-certs=true \ 
-    --server=$kube_api_server \ 
-    --kubeconfig=$k8s_dir/scheduler.conf");
-    invoke_local_command("kubectl config set-credentials system:kube-scheduler \ 
-    --client-certificate=$k8s_ca_dir/scheduler.pem \ 
-    --client-key=$k8s_ca_dir/scheduler-key.pem \ 
-    --embed-certs=true \ 
-    --kubeconfig=$k8s_dir/scheduler.conf");
-    invoke_local_command("kubectl config set-context system:kube-scheduler\@kubernetes \ 
-    --cluster=kubernetes \ 
-    --user=system:kube-scheduler \ 
-    --kubeconfig=$k8s_dir/scheduler.conf");
-    invoke_local_command("kubectl config use-context system:kube-scheduler\@kubernetes \ 
-    --kubeconfig=$k8s_dir/scheduler.conf");
+    invoke_local_command("kubectl config set-cluster kubernetes --certificate-authority=$k8s_ca_dir/ca.pem --embed-certs=true --server=$kube_api_server --kubeconfig=$k8s_dir/scheduler.conf");
+    invoke_local_command("kubectl config set-credentials system:kube-scheduler --client-certificate=$k8s_ca_dir/scheduler.pem --client-key=$k8s_ca_dir/scheduler-key.pem --embed-certs=true --kubeconfig=$k8s_dir/scheduler.conf");
+    invoke_local_command("kubectl config set-context system:kube-scheduler\@kubernetes --cluster=kubernetes --user=system:kube-scheduler --kubeconfig=$k8s_dir/scheduler.conf");
+    invoke_local_command("kubectl config use-context system:kube-scheduler\@kubernetes --kubeconfig=$k8s_dir/scheduler.conf");
     #config  Kubernetes Admin' CN 
-    invoke_local_command("cfssl gencert \ 
-  	-ca=$k8s_ca_dir/ca.pem \ 
-  	-ca-key=$k8s_ca_dir/ca-key.pem \ 
-  	-config=$pki_dir/ca-config.json \ 
-  	-profile=kubernetes \ 
-  	$pki_dir/admin-csr.json | cfssljson -bare $k8s_ca_dir/admin");
-	check_file(qw(admin-key.pem admin.pem),$k8s_ca_dir);
+    invoke_local_command("cfssl gencert -ca=$k8s_ca_dir/ca.pem -ca-key=$k8s_ca_dir/ca-key.pem -config=$pki_dir/ca-config.json -profile=kubernetes $pki_dir/admin-csr.json | cfssljson -bare $k8s_ca_dir/admin");
+  	my @admin_file = qw(admin-key.pem admin.pem);
+	check_file(\@admin_file,$k8s_ca_dir);
     ## create Admin' kubeconfig 
-    invoke_local_command("kubectl config set-cluster kubernetes \ 
-    --certificate-authority=$k8s_ca_dir/ca.pem \ 
-    --embed-certs=true \ 
-    --server=$kube_api_server \ 
-    --kubeconfig=$k8s_dir/admin.conf");
-    invoke_local_command("kubectl config set-credentials kubernetes-admin \ 
-    --client-certificate=$k8s_ca_dir/admin.pem \ 
-    --client-key=$k8s_ca_dir/admin-key.pem \ 
-    --embed-certs=true \ 
-    --kubeconfig=$k8s_dir/admin.conf");
-    invoke_local_command("kubectl config set-context kubernetes-admin\@kubernetes \ 
-    --cluster=kubernetes \ 
-    --user=kubernetes-admin \ 
-    --kubeconfig=$k8s_dir/admin.conf");
-    invoke_local_command("kubectl config use-context kubernetes-admin\@kubernetes \ 
-    --kubeconfig=$k8s_dir/admin.conf");
+    invoke_local_command("kubectl config set-cluster kubernetes --certificate-authority=$k8s_ca_dir/ca.pem --embed-certs=true --server=$kube_api_server --kubeconfig=$k8s_dir/admin.conf");
+    invoke_local_command("kubectl config set-credentials kubernetes-admin --client-certificate=$k8s_ca_dir/admin.pem --client-key=$k8s_ca_dir/admin-key.pem --embed-certs=true --kubeconfig=$k8s_dir/admin.conf");
+    invoke_local_command("kubectl config set-context kubernetes-admin\@kubernetes --cluster=kubernetes --user=kubernetes-admin --kubeconfig=$k8s_dir/admin.conf");
+    invoke_local_command("kubectl config use-context kubernetes-admin\@kubernetes --kubeconfig=$k8s_dir/admin.conf");
 
     # config Masters Kubelet, create kubelet CN for all masters node
     foreach my $m_ip (@$master_ip_array){
     	my $master = $master_host_name.$m_ip;
     	invoke_local_command("cp -n $pki_dir/kubelet-csr.json $pki_dir/kubelet-$master-csr.json");
     	invoke_local_command("/bin/sed -i \"s/\$master/$master/g\" $pki_dir/kubelet-$master-csr.json");
-    	invoke_local_command("cfssl gencert \ 
-      	-ca=$k8s_ca_dir/ca.pem \ 
-      	-ca-key=$k8s_ca_dir/ca-key.pem \ 
-      	-config=$pki_dir/ca-config.json \ 
-      	-hostname=$master \ 
-      	-profile=kubernetes \ 
-      	$pki_dir/kubelet-$master-csr.json | cfssljson -bare $k8s_ca_dir/kubelet-$master");
+    	invoke_local_command("cfssl gencert -ca=$k8s_ca_dir/ca.pem -ca-key=$k8s_ca_dir/ca-key.pem -config=$pki_dir/ca-config.json -hostname=$master -profile=kubernetes $pki_dir/kubelet-$master-csr.json | cfssljson -bare $k8s_ca_dir/kubelet-$master");
       	#clear temp file
       	invoke_local_command("rm -rf $pki_dir/kubelet-$master-csr.json");
     }
     ## check files
     foreach my $m_ip (@$master_ip_array){
     	my $master = $master_host_name.$m_ip;
-		check_file(qw(kubelet-$master-key.pem kubelet-$master.pem), $k8s_ca_dir);
+    	my @master_file = qw(kubelet-$master-key.pem kubelet-$master.pem);
+		check_file(\@master_file, $k8s_ca_dir);
     }
     ### upload kubelet CN to all master node
     foreach my $m_ip (@$master_ip_array){
@@ -513,38 +460,19 @@ sub install_kubernetes{
     #create kubeconfig for all master node by kubectl 
     foreach my $m_ip (@$master_ip_array){
       my $master = $master_host_name.$m_ip;
-      invoke_sys_command("cd $k8s_ca_dir && \ 
-	      kubectl config set-cluster kubernetes \ 
-	        --certificate-authority=$k8s_ca_dir/ca.pem \ 
-	        --embed-certs=true \ 
-	        --server=$kube_api_server \ 
-	        --kubeconfig=$k8s_dir/kubelet.conf && \ 
-	      kubectl config set-credentials system:node:$master \ 
-	        --client-certificate=$k8s_ca_dir/kubelet.pem \ 
-	        --client-key=$k8s_ca_dir/kubelet-key.pem \ 
-	        --embed-certs=true \ 
-	        --kubeconfig=$k8s_dir/kubelet.conf && \ 
-	      kubectl config set-context system:node:$master\@kubernetes \ 
-	        --cluster=kubernetes \ 
-	        --user=system:node:$master \ 
-	        --kubeconfig=$k8s_dir/kubelet.conf && \ 
-	      kubectl config use-context system:node:$master\@kubernetes \ 
-	        --kubeconfig=$k8s_dir/kubelet.conf",$m_ip);
+      invoke_sys_command("cd $k8s_ca_dir && kubectl config set-cluster kubernetes --certificate-authority=$k8s_ca_dir/ca.pem --embed-certs=true --server=$kube_api_server --kubeconfig=$k8s_dir/kubelet.conf && kubectl config set-credentials system:node:$master --client-certificate=$k8s_ca_dir/kubelet.pem --client-key=$k8s_ca_dir/kubelet-key.pem --embed-certs=true --kubeconfig=$k8s_dir/kubelet.conf && kubectl config set-context system:node:$master\@kubernetes --cluster=kubernetes --user=system:node:$master --kubeconfig=$k8s_dir/kubelet.conf && kubectl config use-context system:node:$master\@kubernetes --kubeconfig=$k8s_dir/kubelet.conf",$m_ip);
     }
 
     #Service Account Key
     invoke_local_command("openssl genrsa -out $k8s_ca_dir/sa.key 2048");
     invoke_local_command("openssl rsa -in $k8s_ca_dir/sa.key -pubout -out $k8s_ca_dir/sa.pub");
-    check_file(qw(sa.key sa.pub), $k8s_ca_dir);
+    my @account_key_file = qw(sa.key sa.pub);
+    check_file(\@account_key_file, $k8s_ca_dir);
     
 
     #delete all no useful files
-    $log->warn("will delete temp file [$k8s_ca_dir/*.csr] [$k8s_ca_dir/scheduler*.pem] [$k8s_ca_dir/controller-manager*.pem] [$k8s_ca_dir/admin*.pem] [$k8s_ca_dir/kubelet*.pem]");
-    invoke_local_command("rm -rf $k8s_ca_dir/*.csr \ 
-    $k8s_ca_dir/scheduler*.pem \ 
-    $k8s_ca_dir/controller-manager*.pem \ 
-    $k8s_ca_dir/admin*.pem \ 
-    $k8s_ca_dir/kubelet*.pem");
+    $log->info("will delete temp file [$k8s_ca_dir/*.csr] [$k8s_ca_dir/scheduler*.pem] [$k8s_ca_dir/controller-manager*.pem] [$k8s_ca_dir/admin*.pem] [$k8s_ca_dir/kubelet*.pem]");
+    invoke_local_command("rm -rf $k8s_ca_dir/*.csr $k8s_ca_dir/scheduler*.pem $k8s_ca_dir/controller-manager*.pem $k8s_ca_dir/admin*.pem $k8s_ca_dir/kubelet*.pem");
 
     #scp CNs to all master node
   	upload_file_to_node("$k8s_ca_dir/*","$k8s_ca_dir",0,$master_ip_str);
@@ -562,11 +490,11 @@ sub install_kubernetes{
 sub install_component{
 	my $master_ip_str = shift;
 	#check generate file /etc/etcd/config.yml、/etc/haproxy/haproxy.cfg
-	invoke_local_command("export NODES=\"$master_ip_str\";$pki_dir/hack/gen-configs.sh");
+	invoke_local_command("export NODES=\"$master_ip_str\";$k8s_manual_files/hack/gen-configs.sh");
 	
 	#generate Static pod YAML & EncryptionConfig
 	#check generate file /etc/kubernetes/manifests、/etc/kubernetes/encryption、/etc/kubernetes/audit
-	invoke_local_command("export NODES=\"$master_ip_str\";$pki_dir/hack/gen-manifests.sh");
+	invoke_local_command("export NODES=\"$master_ip_str\";$k8s_manual_files/hack/gen-manifests.sh");
 
 	#config k8s component
 	invoke_sys_command("mkdir -p /var/lib/kubelet /var/log/kubernetes /var/lib/etcd /etc/systemd/system/kubelet.service.d",$master_ip_str);
@@ -583,19 +511,20 @@ sub install_component{
 
 #check if the $file_dir/$file_list file exists
 sub check_file{
-	my ($file_list,$file_dir) = shift;
+	my ($file_list,$file_dir) = @_;
 
 	foreach my $fileName (@$file_list){
 		unless (-e "$file_dir/$fileName") {
 			$log->error("check_file error........ $file_dir/$fileName not exist .....");
 		}
 	}
+	$log->info("=====check_file finish======");
 }
 
 #invoke local command
 sub invoke_local_command{
 	my $command = shift;
-	$log->info("start exec local command: [$command]");
+	$log->info("start~ exec local command: [$command]");
 	my $exec_result = `$command`;
 	$log->info("finish exec local command: [$command] [$exec_result]");
 }
@@ -606,9 +535,9 @@ sub invoke_sys_command{
 
 	my $exec_command = "su - $default_user -c '\"$perl_install_dir\"/bin/atnodes -L -u $default_user \"$command\" \"$ip_str\"'";
 
-	$log->info("start exec command: [$exec_command]");
+	$log->info("start~ exec remote command: [$exec_command]");
 	my $exec_result = `$exec_command`;
-	$log->info("finish exec command: [$exec_command] [$exec_result]");
+	$log->info("finish exec remote command: [$exec_command] [$exec_result]");
 }
 
 #upload file to node dir
