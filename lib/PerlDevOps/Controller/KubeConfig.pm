@@ -120,7 +120,7 @@ sub install_k8s_task{
 	#ssh_login($default_user,$default_pwd,$all_ip_str);
 
 	#2、all node config hostname
-	#update_host_config($masterAddress,$nodeAddress,$k8sPrefix);
+	update_host_config($masterAddress,$nodeAddress,$k8sPrefix);
 	
 	#3、all node update os config
 	#update_sys_config($all_ip_str);
