@@ -353,8 +353,7 @@ sub install_kubernetes{
 	invoke_local_command("cfssl gencert -initca etcd-ca-csr.json | cfssljson -bare $etcd_ca_dir/etcd-ca");
 	my $current_master_ip_str = replace_str($master_ip_str);
 	invoke_local_command("cfssl gencert -ca=$etcd_ca_dir/etcd-ca.pem -ca-key=$etcd_ca_dir/etcd-ca-key.pem -config=ca-config.json -hostname=127.0.0.1,$current_master_ip_str -profile=kubernetes etcd-csr.json | cfssljson -bare $etcd_ca_dir/etcd");
-	my $etcd_file_list = qw(etcd-ca-key.pem etcd-ca.pem etcd-key.pem etcd.pem);
-	check_file($etcd_file_list,$etcd_ca_dir);
+	check_file(qw(etcd-ca-key.pem etcd-ca.pem etcd-key.pem etcd.pem),$etcd_ca_dir);
 	invoke_local_command("rm -rf $etcd_ca_dir/*.csr");
 	##scp all master node
 	upload_file_to_node("$etcd_ca_dir/etcd*.pem","$etcd_ca_dir",0,$master_ip_str);
@@ -416,12 +415,12 @@ sub install_kubernetes{
     --embed-certs=true \ 
     --kubeconfig=$k8s_dir/controller-manager.conf");
 	
-	invoke_local_command("kubectl config set-context system:kube-controller-manager@kubernetes \ 
+	invoke_local_command("kubectl config set-context system:kube-controller-manager\@kubernetes \ 
     --cluster=kubernetes \ 
     --user=system:kube-controller-manager \ 
     --kubeconfig=$k8s_dir/controller-manager.conf");
 
-    invoke_local_command("kubectl config use-context system:kube-controller-manager@kubernetes \ 
+    invoke_local_command("kubectl config use-context system:kube-controller-manager\@kubernetes \ 
     --kubeconfig=$k8s_dir/controller-manager.conf");
 
     #config Scheduler CA and CN
@@ -443,11 +442,11 @@ sub install_kubernetes{
     --client-key=$k8s_ca_dir/scheduler-key.pem \ 
     --embed-certs=true \ 
     --kubeconfig=$k8s_dir/scheduler.conf");
-    invoke_local_command("kubectl config set-context system:kube-scheduler@kubernetes \ 
+    invoke_local_command("kubectl config set-context system:kube-scheduler\@kubernetes \ 
     --cluster=kubernetes \ 
     --user=system:kube-scheduler \ 
     --kubeconfig=$k8s_dir/scheduler.conf");
-    invoke_local_command("kubectl config use-context system:kube-scheduler@kubernetes \ 
+    invoke_local_command("kubectl config use-context system:kube-scheduler\@kubernetes \ 
     --kubeconfig=$k8s_dir/scheduler.conf");
     #config  Kubernetes Admin' CN 
     invoke_local_command("cfssl gencert \ 
@@ -468,11 +467,11 @@ sub install_kubernetes{
     --client-key=$k8s_ca_dir/admin-key.pem \ 
     --embed-certs=true \ 
     --kubeconfig=$k8s_dir/admin.conf");
-    invoke_local_command("kubectl config set-context kubernetes-admin@kubernetes \ 
+    invoke_local_command("kubectl config set-context kubernetes-admin\@kubernetes \ 
     --cluster=kubernetes \ 
     --user=kubernetes-admin \ 
     --kubeconfig=$k8s_dir/admin.conf");
-    invoke_local_command("kubectl config use-context kubernetes-admin@kubernetes \ 
+    invoke_local_command("kubectl config use-context kubernetes-admin\@kubernetes \ 
     --kubeconfig=$k8s_dir/admin.conf");
 
     # config Masters Kubelet, create kubelet CN for all masters node
@@ -519,11 +518,11 @@ sub install_kubernetes{
 	        --client-key=$k8s_ca_dir/kubelet-key.pem \ 
 	        --embed-certs=true \ 
 	        --kubeconfig=$k8s_dir/kubelet.conf && \ 
-	      kubectl config set-context system:node:$master@kubernetes \ 
+	      kubectl config set-context system:node:$master\@kubernetes \ 
 	        --cluster=kubernetes \ 
 	        --user=system:node:$master \ 
 	        --kubeconfig=$k8s_dir/kubelet.conf && \ 
-	      kubectl config use-context system:node:$master@kubernetes \ 
+	      kubectl config use-context system:node:$master\@kubernetes \ 
 	        --kubeconfig=$k8s_dir/kubelet.conf",$m_ip);
     }
 
