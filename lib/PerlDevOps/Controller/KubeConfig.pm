@@ -353,7 +353,7 @@ sub install_kubernetes{
 	invoke_local_command("cfssl gencert -initca etcd-ca-csr.json | cfssljson -bare $etcd_ca_dir/etcd-ca");
 	my $current_master_ip_str = replace_str($master_ip_str);
 	invoke_local_command("cfssl gencert -ca=$etcd_ca_dir/etcd-ca.pem -ca-key=$etcd_ca_dir/etcd-ca-key.pem -config=ca-config.json -hostname=127.0.0.1,$current_master_ip_str -profile=kubernetes etcd-csr.json | cfssljson -bare $etcd_ca_dir/etcd");
-	my $etcd_file_list = qw(etcd-ca-key.pem  etcd-ca.pem  etcd-key.pem  etcd.pem);
+	my $etcd_file_list = qw(etcd-ca-key.pem etcd-ca.pem etcd-key.pem etcd.pem);
 	check_file($etcd_file_list,$etcd_ca_dir);
 	invoke_local_command("rm -rf $etcd_ca_dir/*.csr");
 	##scp all master node
@@ -366,7 +366,7 @@ sub install_kubernetes{
 	my $kube_api_port = $kubeConfig->{"kube_api_port"};
 	my $master_host_name = $kubeConfig->{"masterHostName"};
 	#api vip
-	my $kube_api_server = "https://$kube_api_ip:$kube_api_port"
+	my $kube_api_server = "https://$kube_api_ip:$kube_api_port";
 	my $k8s_ca_dir = "$k8s_dir/pki"; 
 	invoke_local_command("mkdir -p $k8s_ca_dir");
 	invoke_local_command("cfssl gencert -initca ca-csr.json | cfssljson -bare $k8s_ca_dir/ca");
