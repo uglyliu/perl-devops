@@ -17,13 +17,10 @@ my $tmp_dir = "/root/perl-devops/tmp";
 my $default_user = "root";
 my $default_pwd = "root";
 
-
 my $k8s_manual_files = "/root/k8s-manual-files"; 
 my $pki_dir = "$k8s_manual_files/pki";
 
 my $log = Mojo::Log->new(path => "$log_file");
-
-
 
 sub index{
 	my $self = shift;
@@ -56,7 +53,6 @@ sub config{
 	 }
 	 $self->redirect_to('/k8s');
 }
-
 
 sub _validation {
   	my $self = shift;
@@ -140,7 +136,6 @@ sub install_k8s_task{
 
 	$log->info("finish install k8s: $all_ip_pair");
 }
-
 
 sub log{
 	my $self = shift;
@@ -367,13 +362,13 @@ sub install_kubernetes{
 	$log->info("will delete temp file [$etcd_ca_dir/*.csr]");
 	invoke_local_command("rm -rf $etcd_ca_dir/*.csr");
 	##scp all master node
-	upload_file_to_node("$etcd_ca_dir/etcd*.pem","$etcd_ca_dir",0,$master_ip_str);
+	upload_file_to_node("$etcd_ca_dir/etcd*pem","$etcd_ca_dir",0,$master_ip_str);
 	
 	#config kubernetes CA
 	my $k8s_dir = $kubeConfig->{"kube_dir"}; 
 	my $cluster_ip = $kubeConfig->{"clusterIP"}; 
 	my $kube_api_ip = $kubeConfig->{"kube_api_ip"}; 
-	my $kube_api_port = $kubeConfig->{"kube_api_port"};
+	my $kube_api_port = $kubeConfig->{"kube_api_port"} // "6443";
 	my $master_host_name = $kubeConfig->{"masterHostName"};
 	#api vip
 	my $kube_api_server = "https://$kube_api_ip:$kube_api_port";
@@ -400,11 +395,11 @@ sub install_kubernetes{
 
 	## config Controller Manager CN
 	invoke_local_command("cfssl gencert -ca=$k8s_ca_dir/ca.pem -ca-key=$k8s_ca_dir/ca-key.pem -config=$pki_dir/ca-config.json -profile=kubernetes $pki_dir/manager-csr.json | cfssljson -bare $k8s_ca_dir/controller-manager");
-  	my @controller_file = qw(controller-manager-key.pem  controller-manager.pem);
+  	my @controller_file = qw(controller-manager-key.pem controller-manager.pem);
 	check_file(\@controller_file,$k8s_ca_dir);
 	
 	###config kubeconfig
-	invoke_local_command("kubectl config set-cluster kubernetes --certificate-authority=$k8s_dir/ca.pem --embed-certs=true --server=$kube_api_server --kubeconfig=$k8s_dir/controller-manager.conf");
+	invoke_local_command("kubectl config set-cluster kubernetes --certificate-authority=$k8s_ca_dir/ca.pem --embed-certs=true --server=$kube_api_server --kubeconfig=$k8s_dir/controller-manager.conf");
 	
 	invoke_local_command("kubectl config set-credentials system:kube-controller-manager --client-certificate=$k8s_ca_dir/controller-manager.pem --client-key=$k8s_ca_dir/controller-manager-key.pem --embed-certs=true --kubeconfig=$k8s_dir/controller-manager.conf");
 	
@@ -413,7 +408,7 @@ sub install_kubernetes{
     invoke_local_command("kubectl config use-context system:kube-controller-manager\@kubernetes --kubeconfig=$k8s_dir/controller-manager.conf");
 
     #config Scheduler CA and CN
-    invoke_local_command("cfssl gencert -ca=$k8s_ca_dir/ca.pem -ca-key=$k8s_ca_dir/ca-key.pem -config=$pki_dir/ca-config.json -profile=kubernetes $pki_dir/cheduler-csr.json | cfssljson -bare $k8s_ca_dir/scheduler");
+    invoke_local_command("cfssl gencert -ca=$k8s_ca_dir/ca.pem -ca-key=$k8s_ca_dir/ca-key.pem -config=$pki_dir/ca-config.json -profile=kubernetes $pki_dir/scheduler-csr.json | cfssljson -bare $k8s_ca_dir/scheduler");
   	my @schedule_file = qw(scheduler-key.pem scheduler.pem);
     check_file(\@schedule_file,$k8s_ca_dir);
     ## config Scheduler's kubeconfig
@@ -435,23 +430,24 @@ sub install_kubernetes{
     foreach my $m_ip (@$master_ip_array){
     	my $master = $master_host_name.$m_ip;
     	invoke_local_command("cp -n $pki_dir/kubelet-csr.json $pki_dir/kubelet-$master-csr.json");
-    	invoke_local_command("/bin/sed -i \"s/\$master/$master/g\" $pki_dir/kubelet-$master-csr.json");
+    	invoke_local_command("/bin/sed -i \"s/\\\$NODE/$master/g\" $pki_dir/kubelet-$master-csr.json");
     	invoke_local_command("cfssl gencert -ca=$k8s_ca_dir/ca.pem -ca-key=$k8s_ca_dir/ca-key.pem -config=$pki_dir/ca-config.json -hostname=$master -profile=kubernetes $pki_dir/kubelet-$master-csr.json | cfssljson -bare $k8s_ca_dir/kubelet-$master");
-      	#clear temp file
+      	#clear tmp file
+      	$log->warn("will delete temp file: [$pki_dir/kubelet-$master-csr.json]");
       	invoke_local_command("rm -rf $pki_dir/kubelet-$master-csr.json");
     }
     ## check files
     foreach my $m_ip (@$master_ip_array){
     	my $master = $master_host_name.$m_ip;
-    	my @master_file = qw(kubelet-$master-key.pem kubelet-$master.pem);
+    	my @master_file = ("kubelet-$master-key.pem","kubelet-$master.pem");
 		check_file(\@master_file, $k8s_ca_dir);
     }
     ### upload kubelet CN to all master node
     foreach my $m_ip (@$master_ip_array){
       my $master = $master_host_name.$m_ip;
-      upload_file_to_node("$k8s_ca_dir/ca.pem",$k8s_ca_dir,0,$m_ip);
-      upload_file_to_node("$k8s_ca_dir/kubelet-$master-key.pem",$k8s_ca_dir,0,$m_ip);
-      upload_file_to_node("$k8s_ca_dir/kubelet-$master.pem",$k8s_ca_dir,0,$m_ip);
+      upload_file_to_node("$k8s_ca_dir/ca.pem","$k8s_ca_dir",0,$m_ip);
+      upload_file_to_node("$k8s_ca_dir/kubelet-$master-key.pem","$k8s_ca_dir/kubelet-key.pem",0,$m_ip);
+      upload_file_to_node("$k8s_ca_dir/kubelet-$master.pem","$k8s_ca_dir/kubelet.pem",0,$m_ip);
       #
       $log->warn("will delete temp file: [$k8s_ca_dir/kubelet-$master-key.pem] [$k8s_ca_dir/kubelet-$master.pem]");
       invoke_local_command("rm -rf $k8s_ca_dir/kubelet-$master-key.pem $k8s_ca_dir/kubelet-$master.pem");
@@ -512,21 +508,19 @@ sub install_component{
 #check if the $file_dir/$file_list file exists
 sub check_file{
 	my ($file_list,$file_dir) = @_;
-
+	$log->info("check file exist [$file_dir] [".join("\t",@$file_list)."]");
 	foreach my $fileName (@$file_list){
 		unless (-e "$file_dir/$fileName") {
-			$log->error("check_file error........ $file_dir/$fileName not exist .....");
+			$log->error("check_file error........ $file_dir/$fileName not exist .....$fileName");
 		}
 	}
-	$log->info("=====check_file finish======");
 }
 
 #invoke local command
 sub invoke_local_command{
 	my $command = shift;
-	$log->info("start~ exec local command: [$command]");
 	my $exec_result = `$command`;
-	$log->info("finish exec local command: [$command] [$exec_result]");
+	$log->info("local~: [$command] [$exec_result]");
 }
 
 #use for invoke remote system command
@@ -534,10 +528,8 @@ sub invoke_sys_command{
 	my ($command,$ip_str) = @_;
 
 	my $exec_command = "su - $default_user -c '\"$perl_install_dir\"/bin/atnodes -L -u $default_user \"$command\" \"$ip_str\"'";
-
-	$log->info("start~ exec remote command: [$exec_command]");
 	my $exec_result = `$exec_command`;
-	$log->info("finish exec remote command: [$exec_command] [$exec_result]");
+	$log->info("remote: [$exec_command] [$exec_result]");
 }
 
 #upload file to node dir
@@ -547,20 +539,30 @@ sub upload_file_to_node{
 	my($full_name,$targetdir,$ispack,$ipstr) = @_;
 	#get fileName
 	my $filename = basename($full_name);
-	#create remote host targetdir
-	invoke_sys_command("mkdir -p $targetdir;",$ipstr);
-	#exec upload file
-	my $upload_command = "su - $default_user -c \"$perl_install_dir/bin/tonodes -L $full_name -u $default_user $ipstr:$targetdir/\"";
 
-	$log->info("start exec upload file command: [$upload_command]");
+	my $real_target_dir = $targetdir;
+	if($targetdir =~ m/\./){
+		$real_target_dir = dirname($targetdir);
+	}
+	#create remote host targetdir
+	invoke_sys_command("mkdir -p $real_target_dir;",$ipstr);
+	
+	#exec upload file
+	my $upload_command = "su - $default_user -c \"$perl_install_dir/bin/tonodes -L $full_name -u $default_user -- $ipstr:$targetdir\"";
+
 	my $exec_result = `$upload_command`;
-	$log->info("finish exec upload file command: [$upload_command] [$exec_result]");
+	$log->info("upload: [$upload_command] [$exec_result]");
 	# ispack
 	if ($ispack) {
-		$log->info("start exec unpack command: [$upload_command]");
-		invoke_sys_command("/bin/tar -xzvf $targetdir/$filename -C $targetdir/;",$ipstr);
-		$log->info("start exec unpack command: [$upload_command]");
+		if($targetdir =~ m/\./){
+			invoke_sys_command("/bin/tar -xzvf $targetdir -C $real_target_dir/;",$ipstr);
+		}else{
+			invoke_sys_command("/bin/tar -xzvf $targetdir/$filename -C $targetdir/;",$ipstr);
+		}
+		$log->info("finish exec unpack command");
 	}
+	$log->info("upload file,then select file.....");
+	invoke_sys_command("ls $real_target_dir",$ipstr);
 }
 
 1;

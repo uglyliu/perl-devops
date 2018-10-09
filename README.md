@@ -81,3 +81,15 @@ git clone https://github.com/kairen/k8s-manual-files.git ~/k8s-manual-files
 
 
 
+[/etc/etcd/ssl] [etcd-ca-key.pem	etcd-ca.pem	etcd-key.pem	etcd.pem]
+[/etc/kubernetes/pki] [ca-key.pem	ca.pem]
+[/etc/kubernetes/pki] [apiserver-key.pem	apiserver.pem]
+[/etc/kubernetes/pki] [front-proxy-ca-key.pem	front-proxy-ca.pem]
+[/etc/kubernetes/pki] [front-proxy-client-key.pem	front-proxy-client.pem]
+[/etc/kubernetes/pki] [controller-manager-key.pem	controller-manager.pem]
+[/etc/kubernetes/pki] [scheduler-key.pem	scheduler.pem]
+[/etc/kubernetes/pki] [admin-key.pem	admin.pem]
+[/etc/kubernetes/pki] [kubelet-k8s-11.11.11.111-key.pem	kubelet-k8s-11.11.11.111.pem]
+[/etc/kubernetes/pki] [kubelet-k8s-11.11.11.112-key.pem	kubelet-k8s-11.11.11.112.pem]
+[/etc/kubernetes/pki] [kubelet-k8s-11.11.11.113-key.pem	kubelet-k8s-11.11.11.113.pem]
+[/etc/kubernetes/pki] [sa.key	sa.pub]
