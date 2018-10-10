@@ -5,6 +5,7 @@ use PerlDevOps::Model::ProductVersion;
 use PerlDevOps::Model::Assets;
 use PerlDevOps::Model::Server;
 use PerlDevOps::Model::KubeConfig;
+use PerlDevOps::Model::KubeCluster;
 use Mojo::Pg;
 use Minion;
 
@@ -41,6 +42,9 @@ sub startup {
   );
   $self->helper(
     kubeConfig => sub { state $kube = PerlDevOps::Model::KubeConfig->new(pg => shift->pg) }
+  );
+  $self->helper(
+    kubeCluster => sub { state $kubeCluster = PerlDevOps::Model::KubeCluster->new(pg => shift->pg) }
   );
 
 

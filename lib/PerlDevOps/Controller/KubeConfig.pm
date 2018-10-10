@@ -40,18 +40,40 @@ sub config{
 	
 	 my $param = $v->output;
      my $id = $self->param('id');
+     my $deploy = $self->param('deploy');
+     if($deploy){
+     	 say "the k8s cluster have deploy....";
+     	 $self->redirect_to('/k8s');
+     }
 	 if(!$id){
-	 	 #new
 	 	 $param -> {createDate} = localtime();
 	 	 $param -> {createUser} = "admin";
 	 	 my $id = $self->app->kubeConfig->add($param);
 	 }else{
-	 	 #update
 	 	 $param -> {updateDate} = localtime();
 	 	 $param -> {updateUser} = "admin";
 	 	 $self->app->kubeConfig->save($id, $param);
 	 }
+	 save_kube_cluster($self,$param -> {kubeName},$param -> {masterAddress},$param -> {nodeAddress});
 	 $self->redirect_to('/k8s');
+}
+
+sub save_kube_cluster{
+	my ($self,$kubeName,$masterAddress,$nodeAddress) = @_;
+
+	 #clear & save
+	 $self->app->kubeCluster->remove_by_cluster($kubeName);
+
+	 my $master_ip_array = parse_ips($masterAddress);
+	 foreach my $master_ip (@$master_ip_array){
+	 	 my $id = $self->app->kubeConfig->add("{\"ip\":\"$master_ip\",\"type\":1,\"ssh\":0,\"cluster\":\"$kubeName\",\"user\":\"root\",\"password\":\"root\",\"port\":22}");
+	 }
+
+	 my $node_ip_array = parse_ips($nodeAddress);
+	 foreach my $node_ip (@$node_ip_array){
+	 	 my $id = $self->app->kubeConfig->add("{\"ip\":\"$node_ip\",\"type\":1,\"ssh\":0,\"cluster\":\"$kubeName\",\"user\":\"root\",\"password\":\"root\",\"port\":22}");
+	 }
+
 }
 
 sub _validation {
@@ -82,6 +104,7 @@ sub _validation {
 	$v->required('loadBalance');
 	$v->required('kubeDesc');
 	$v->required('keepalivedAddress');
+	$v->required('deploy');
   	return $v;
 }
 
@@ -95,46 +118,77 @@ sub install_check{
 sub install{
 	my $self = shift;
 	my $kubeConfig = install_check($self,$self->param("id"));
+	my $cluster_node_array = $self->app->kubeCluster->find_cluster_no_config_ssh($kubeConfig->{"kubeName"});
 	#start install job
-	$self->app->minion->enqueue(install_k8s_task => [$kubeConfig] );
+	$self->app->minion->enqueue(install_k8s_task => [$kubeConfig,$cluster_node_array] );
 	#$self->app->minion->perform_jobs;
 	my $worker = $self->app->minion->worker;
 	$worker->run;
 	$self->render();
 }
 
+sub print_hash{
+	my ($hash,$desc) = @_;
+	say "print $desc: ";
+	while (my ($k, $v) = each %$hash ) {
+	   say "\t\t $k ======== $v";
+	}
+}
+
 sub install_k8s_task{
 	my($job,@args) = @_;
 	my $kubeConfig = $args[0];
+	#all cluster node
+	my $cluster_node_array = $args[1];
+	my $master_prefix = $kubeConfig->{"masterHostName"};
+	my $node_prefix = $kubeConfig->{"nodeHostName"};
 
-	my $masterAddress = $kubeConfig->{"masterAddress"};
-	my $nodeAddress = $kubeConfig->{"nodeAddress"};
-	my $k8sPrefix = $kubeConfig->{"masterHostName"};
+	my %cluster_ip_host_hash = map { 
+		$_ -> {"ip"} , 
+		$_ -> {'type'} eq "master" ? $master_prefix.$_ -> {'id'} : $node_prefix.$_ -> {'id'}
+	} @$cluster_node_array;
 
+	my @master_node_array = grep $_ -> {"type"} eq "master" , @$cluster_node_array;
+
+	my %master_ip_host_hash =  map { 
+		$_ -> {"ip"} , 
+		$master_prefix.$_ -> {'id'}
+	} @master_node_array;
+
+	my @all_ip_array = keys %cluster_ip_host_hash;
+	my @all_host_array = values %cluster_ip_host_hash;
+
+	my $all_ip_str = array2str(\@all_ip_array);
+	my $all_host_str = array2str(\@all_host_array);
 	#1、config ssh login
-	my $all_ip_pair = $masterAddress." ".$nodeAddress;
-	my $all_ip_array = parse_ips($all_ip_pair);
-	my $all_ip_str = array2str($all_ip_array);
-	my $master_ip_array = parse_ips($masterAddress);
-	my $master_ip_str = array2str($master_ip_array);
-	#ssh_login($default_user,$default_pwd,$all_ip_str);
+	
+	my @master_ip_array = keys master_ip_host_hash;
+	my $master_ip_str = array2str(\@master_ip_array);
+
+	print_hash(\%cluster_ip_host_hash,"all cluster node");
+	print_hash(\%master_ip_host_hash,"all master node");
+
+	ssh_login($default_user,$default_pwd,$all_ip_str);
 
 	#2、all node config hostname
-	#update_host_config($masterAddress,$nodeAddress,$k8sPrefix);
+	update_host_config(\%cluster_ip_host_hash,$master_prefix,$node_prefix);
+	
+	#2.1、config hostname login
+	ssh_login($default_user,$default_pwd,$all_host_str);
 	
 	#3、all node update os config
-	#update_sys_config($all_ip_str);
+	update_sys_config($all_ip_str);
 	
 	#4、all node install docker v17.03
-	#install_docker($all_ip_str);
+	install_docker($all_ip_str);
 	
 	#5、all node install kubernetes
-	#download_kubernetes($all_ip_str,$master_ip_str,$kubeConfig);
+	download_kubernetes($all_ip_str,$master_ip_str,$kubeConfig);
 	install_kubernetes($all_ip_str,$master_ip_str,$master_ip_array,$kubeConfig);
 
-	#install_component($master_ip_str);
+	install_component($master_ip_str);
 
-	$log->info("finish install k8s: $all_ip_pair");
+	$log->info("finish install k8s cluster");
 }
 
 sub log{
@@ -206,22 +260,17 @@ sub builder_ip_host_name_hash{
 
 # config ip-hostname map
 sub update_host_config{
-	my ($master_ip_str,$node_ip_str,$k8s_prefix) = @_;
+	my ($ip_hostname_hash,$master_prefix,$node_prefix) = @_;
 
 	$log->info("--------------start config hosts and hostname！--------------");
 
-	my $ip_hostname_hash = {};
-	my $master_ip_array = parse_ips($master_ip_str);
-	my $node_ip_array = parse_ips($node_ip_str);
 	#init ip-hostname map
-	builder_ip_host_name_hash($ip_hostname_hash,$master_ip_array,$k8s_prefix."m");
-	builder_ip_host_name_hash($ip_hostname_hash,$node_ip_array,$k8s_prefix."n");
 
 	my $all_ip_list = [keys %$ip_hostname_hash];
 
 	while (my ($ip, $hostname) = each %$ip_hostname_hash) {
 		#1、clear config file：/etc/hosts and /etc/sysconfig/network
-		invoke_sys_command("/bin/sed -i \"/$k8s_prefix/d\" /etc/hosts;sed -i \"/HOSTNAME=/d\" /etc/sysconfig/network;",$ip);
+		invoke_sys_command("/bin/sed -i \"/$master_prefix/d\" /etc/hosts;/bin/sed -i \"/$node_prefix/d\" /etc/hosts;/bin/sed -i \"/HOSTNAME=/d\" /etc/sysconfig/network;",$ip);
 		#2、update hostname 
 		invoke_sys_command("/bin/echo \"HOSTNAME=$hostname\" >> /etc/sysconfig/network;/bin/hostname $hostname",$ip);
 	}
@@ -467,11 +516,19 @@ sub install_kubernetes{
     
 
     #delete all no useful files
-    $log->info("will delete temp file [$k8s_ca_dir/*.csr] [$k8s_ca_dir/scheduler*.pem] [$k8s_ca_dir/controller-manager*.pem] [$k8s_ca_dir/admin*.pem] [$k8s_ca_dir/kubelet*.pem]");
-    invoke_local_command("rm -rf $k8s_ca_dir/*.csr $k8s_ca_dir/scheduler*.pem $k8s_ca_dir/controller-manager*.pem $k8s_ca_dir/admin*.pem $k8s_ca_dir/kubelet*.pem");
-
+    $log->info("will delete temp file [$k8s_ca_dir/*.csr]");
+    invoke_local_command("rm -rf $k8s_ca_dir/*.csr");
+   
     #scp CNs to all master node
-  	upload_file_to_node("$k8s_ca_dir/*","$k8s_ca_dir",0,$master_ip_str);
+	upload_file_to_node("$k8s_ca_dir/front-proxy-*.pem","$k8s_ca_dir",0,$master_ip_str);
+	upload_file_to_node("$k8s_ca_dir/sa.*","$k8s_ca_dir",0,$master_ip_str);
+	upload_file_to_node("$k8s_ca_dir/ca-key.pem","$k8s_ca_dir",0,$master_ip_str);
+	upload_file_to_node("$k8s_ca_dir/apiserver*pem","$k8s_ca_dir",0,$master_ip_str);
+
+
+ 	$log->info("will agine test dir file list......");
+    invoke_sys_command("ls $k8s_ca_dir/",$master_ip_str);
+    $log->info("finish agine test dir file list......");
 
   	#scp kubeconfig to all master node
   	upload_file_to_node("$k8s_dir/admin.conf","$k8s_dir",0,$master_ip_str);
@@ -486,23 +543,23 @@ sub install_kubernetes{
 sub install_component{
 	my $master_ip_str = shift;
 	#check generate file /etc/etcd/config.yml、/etc/haproxy/haproxy.cfg
-	invoke_local_command("export NODES=\"$master_ip_str\";$k8s_manual_files/hack/gen-configs.sh");
+	invoke_local_command("export NODES=\"$master_ip_str\";cd $k8s_manual_files;./hack/gen-configs.sh");
 	
 	#generate Static pod YAML & EncryptionConfig
 	#check generate file /etc/kubernetes/manifests、/etc/kubernetes/encryption、/etc/kubernetes/audit
-	invoke_local_command("export NODES=\"$master_ip_str\";$k8s_manual_files/hack/gen-manifests.sh");
+	invoke_local_command("export NODES=\"$master_ip_str\";cd $k8s_manual_files;./hack/gen-manifests.sh");
 
 	#config k8s component
 	invoke_sys_command("mkdir -p /var/lib/kubelet /var/log/kubernetes /var/lib/etcd /etc/systemd/system/kubelet.service.d",$master_ip_str);
-	upload_file_to_node("master/var/lib/kubelet/config.yml","/var/lib/kubelet/",0,$master_ip_str);
-	upload_file_to_node("master/systemd/kubelet.service","/lib/systemd/system/",0,$master_ip_str);
-	upload_file_to_node("master/systemd/10-kubelet.conf","/etc/systemd/system/kubelet.service.d/",0,$master_ip_str);
+	upload_file_to_node("$k8s_manual_files/master/var/lib/kubelet/config.yml","/var/lib/kubelet/",0,$master_ip_str);
+	upload_file_to_node("$k8s_manual_files/master/systemd/kubelet.service","/lib/systemd/system/",0,$master_ip_str);
+	upload_file_to_node("$k8s_manual_files/master/systemd/10-kubelet.conf","/etc/systemd/system/kubelet.service.d/",0,$master_ip_str);
 
 	#start kubelet
 	invoke_sys_command("systemctl enable kubelet.service && systemctl start kubelet.service",$master_ip_str);
 
-	$log->debug("......watch netstat -ntlp......");
-	invoke_local_command("watch netstat -ntlp");
+	#$log->debug("......watch netstat -ntlp......");
+	#invoke_local_command("watch netstat -ntlp");
 }
 
 #check if the $file_dir/$file_list file exists
@@ -541,7 +598,9 @@ sub upload_file_to_node{
 	my $filename = basename($full_name);
 
 	my $real_target_dir = $targetdir;
-	if($targetdir =~ m/\./){
+
+	my $tmp_file = substr($targetdir,rindex($targetdir,"/")+1,length($targetdir));
+	if($tmp_file =~ m/\./){
 		$real_target_dir = dirname($targetdir);
 	}
 	#create remote host targetdir
@@ -554,7 +613,7 @@ sub upload_file_to_node{
 	$log->info("upload: [$upload_command] [$exec_result]");
 	# ispack
 	if ($ispack) {
-		if($targetdir =~ m/\./){
+		if($tmp_file =~ m/\./){
 			invoke_sys_command("/bin/tar -xzvf $targetdir -C $real_target_dir/;",$ipstr);
 		}else{
 			invoke_sys_command("/bin/tar -xzvf $targetdir/$filename -C $targetdir/;",$ipstr);

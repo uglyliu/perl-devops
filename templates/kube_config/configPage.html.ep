@@ -219,6 +219,7 @@
                 
                 <p class="stdformbutton">
                     <input type="hidden" value ="<%= $kubeConfig -> {id} %>" name="id" id="id"/>
+                    <input type="hidden" value ="<%= $kubeConfig -> {deploy} %>" name="deploy" id="deploy"/>
                 	<button class="submit radius2">确定</button>
                 </p>
             </form>

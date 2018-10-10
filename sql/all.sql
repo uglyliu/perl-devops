@@ -1,18 +1,18 @@
 /*
  Navicat Premium Data Transfer
 
- Source Server         : 47.92.78.127
+ Source Server         : localhost_postgresql
  Source Server Type    : PostgreSQL
- Source Server Version : 100005
- Source Host           : 47.92.78.127:5432
+ Source Server Version : 100004
+ Source Host           : localhost:5432
  Source Catalog        : postgres
  Source Schema         : public
 
  Target Server Type    : PostgreSQL
- Target Server Version : 100005
+ Target Server Version : 100004
  File Encoding         : 65001
 
- Date: 16/09/2018 15:33:20
+ Date: 10/10/2018 19:07:27
 */
 
 
@@ -29,11 +29,11 @@ CREATE TABLE "public"."assets" (
   "createUser" varchar(20) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
   "updateDate" timestamp(6) DEFAULT NULL::timestamp without time zone,
   "updateUser" varchar(20) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
-  "idc" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
+  "idc" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
   "cabinetNo" varchar COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "cabinetOrder" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "tags" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "productName" varchar(50) COLLATE "pg_catalog"."default" DEFAULT NULL
+  "cabinetOrder" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "tags" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "productName" varchar(50) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying
 )
 ;
 COMMENT ON COLUMN "public"."assets"."id" IS '资产id';
@@ -51,7 +51,116 @@ COMMENT ON TABLE "public"."assets" IS '资产表';
 -- Records of assets
 -- ----------------------------
 INSERT INTO "public"."assets" VALUES (100011, 0, 0, NULL, '2018-09-16 14:17:16', 'admin', NULL, NULL, '', '', '', '', NULL);
-INSERT INTO "public"."assets" VALUES (100010, 2, 1, NULL, '2018-09-16 14:10:54', 'admin', '2018-09-16 14:26:00', 'admin', '', '', '', '接入层 nginx haproxy', NULL);
+INSERT INTO "public"."assets" VALUES (100010, 2, 1, NULL, '2018-09-16 14:10:54', 'admin', '2018-09-18 10:17:03', 'admin', '', '', '', 'nginx haproxy', NULL);
+
+-- ----------------------------
+-- Table structure for kube_cluster
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."kube_cluster";
+CREATE TABLE "public"."kube_cluster" (
+  "id" int2 NOT NULL DEFAULT nextval('kube_cluster_id_seq'::regclass),
+  "ip" varchar(255) COLLATE "pg_catalog"."default" NOT NULL DEFAULT NULL,
+  "type" varchar(16) COLLATE "pg_catalog"."default" NOT NULL DEFAULT NULL,
+  "ssh" int2 NOT NULL DEFAULT NULL,
+  "cluster" varchar(255) COLLATE "pg_catalog"."default" NOT NULL DEFAULT NULL,
+  "user" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
+  "password" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
+  "port" int2 DEFAULT NULL
+)
+;
+COMMENT ON COLUMN "public"."kube_cluster"."id" IS '主键';
+COMMENT ON COLUMN "public"."kube_cluster"."ip" IS '服务器ip地址';
+COMMENT ON COLUMN "public"."kube_cluster"."type" IS '类型：master/node';
+COMMENT ON COLUMN "public"."kube_cluster"."ssh" IS '是否已经配置过ssh：1是0否';
+COMMENT ON COLUMN "public"."kube_cluster"."cluster" IS '所属集群，集群唯一标识';
+COMMENT ON TABLE "public"."kube_cluster" IS 'kube集群节点表';
+
+-- ----------------------------
+-- Records of kube_cluster
+-- ----------------------------
+INSERT INTO "public"."kube_cluster" VALUES (1, '11.11.11.111', 'master', 0, 'Test', 'root', 'root', 22);
+INSERT INTO "public"."kube_cluster" VALUES (2, '11.11.11.112', 'master', 0, 'Test', 'root', 'root', 22);
+INSERT INTO "public"."kube_cluster" VALUES (3, '11.11.11.113', 'master', 0, 'Test', 'root', 'root', 22);
+INSERT INTO "public"."kube_cluster" VALUES (4, '11.11.11.114', 'node', 0, 'Test', 'root', 'root', 22);
+INSERT INTO "public"."kube_cluster" VALUES (5, '11.11.11.115', 'node', 0, 'Test', 'root', 'root', 22);
+INSERT INTO "public"."kube_cluster" VALUES (6, '11.11.11.116', 'node', 0, 'Test', 'root', 'root', 22);
+
+-- ----------------------------
+-- Table structure for kube_config
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."kube_config";
+CREATE TABLE "public"."kube_config" (
+  "id" int4 NOT NULL DEFAULT nextval('kube_config_id_seq'::regclass),
+  "kubeName" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "kubeVersion" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "kubeCniVersion" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "etcdVersion" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "dockerVersion" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "netMode" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "clusterIP" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "serviceClusterIP" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "dnsIP" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "dnsDN" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "kube_api_ip" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "ingressVIP" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "sshUser" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "sshPort" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "masterAddress" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "masterHostName" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "nodeHostName" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "etcdAddress" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "yamlDir" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "nodePort" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "kubeToken" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "loadBalance" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "kubeDesc" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "createDate" timestamp(6) DEFAULT NULL::timestamp without time zone,
+  "createUser" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "updateDate" timestamp(6) DEFAULT NULL::timestamp without time zone,
+  "updateUser" varchar COLLATE "pg_catalog"."default" DEFAULT NULL,
+  "keepalivedAddress" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "nodeAddress" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "etcd_ca_dir" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
+  "kube_dir" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
+  "kube_api_port" int2 DEFAULT NULL,
+  "deploy" int2 DEFAULT NULL
+)
+;
+COMMENT ON COLUMN "public"."kube_config"."kubeName" IS '集群标识';
+COMMENT ON COLUMN "public"."kube_config"."kubeVersion" IS 'k8s版本';
+COMMENT ON COLUMN "public"."kube_config"."kubeCniVersion" IS 'CNI版本';
+COMMENT ON COLUMN "public"."kube_config"."etcdVersion" IS 'etcd版本';
+COMMENT ON COLUMN "public"."kube_config"."dockerVersion" IS 'Docker版本';
+COMMENT ON COLUMN "public"."kube_config"."netMode" IS 'k8s网络模型';
+COMMENT ON COLUMN "public"."kube_config"."clusterIP" IS 'Cluster IP CIDR';
+COMMENT ON COLUMN "public"."kube_config"."serviceClusterIP" IS 'Service Cluster IP CIDR';
+COMMENT ON COLUMN "public"."kube_config"."dnsIP" IS 'Service DNS IP CIDR';
+COMMENT ON COLUMN "public"."kube_config"."dnsDN" IS 'DNS DN';
+COMMENT ON COLUMN "public"."kube_config"."kube_api_ip" IS 'Kubernetes API VIP';
+COMMENT ON COLUMN "public"."kube_config"."ingressVIP" IS 'Kubernetes Ingress VIP';
+COMMENT ON COLUMN "public"."kube_config"."sshUser" IS 'SSH用户';
+COMMENT ON COLUMN "public"."kube_config"."sshPort" IS 'SSH端口';
+COMMENT ON COLUMN "public"."kube_config"."masterAddress" IS 'Master节点地址';
+COMMENT ON COLUMN "public"."kube_config"."masterHostName" IS 'Master节点HostName前缀';
+COMMENT ON COLUMN "public"."kube_config"."nodeHostName" IS 'Node节点HostName前缀';
+COMMENT ON COLUMN "public"."kube_config"."etcdAddress" IS 'etcd集群地址';
+COMMENT ON COLUMN "public"."kube_config"."yamlDir" IS 'YAML主目录';
+COMMENT ON COLUMN "public"."kube_config"."nodePort" IS 'NodePort端口';
+COMMENT ON COLUMN "public"."kube_config"."kubeToken" IS 'token';
+COMMENT ON COLUMN "public"."kube_config"."loadBalance" IS '负载均衡器配置';
+COMMENT ON COLUMN "public"."kube_config"."kubeDesc" IS '集群描述';
+COMMENT ON COLUMN "public"."kube_config"."keepalivedAddress" IS 'keepalived地址';
+COMMENT ON COLUMN "public"."kube_config"."nodeAddress" IS '初始node节点';
+COMMENT ON COLUMN "public"."kube_config"."etcd_ca_dir" IS 'etcd的CA所在目录';
+COMMENT ON COLUMN "public"."kube_config"."kube_dir" IS 'kubernetes安装目录';
+COMMENT ON COLUMN "public"."kube_config"."kube_api_port" IS 'Kubernetes API VIP端口';
+COMMENT ON COLUMN "public"."kube_config"."deploy" IS '是否已经部署过1是0否';
+
+-- ----------------------------
+-- Records of kube_config
+-- ----------------------------
+INSERT INTO "public"."kube_config" VALUES (1, 'Test', 'v1.11.0', 'v0.7.1', 'v3.3.8', 'v18.05.0-ce', 'Calico-v3.1', '10.244.0.0/16', '10.96.0.0/12', '10.96.0.10', 'cluster.local', 'https://172.22.132.9:6443', '11.11.11.110', 'root', '2222|2200|2201|2202|2203|2204', '11.11.11.11[1-3]', 'k8s-m', 'k8s-n', '11.11.11.11[1-3]', '/root', '8090', NULL, 'HaProxy', '    描述                    
+                        ', '2018-09-20 17:59:33', 'admin', NULL, NULL, '11.11.11.11[4-6]', '11.11.11.11[4-6]', '/etc/etcd/ssl', '/etc/kubernetes', NULL, NULL);
 
 -- ----------------------------
 -- Table structure for product
@@ -102,7 +211,9 @@ COMMENT ON TABLE "public"."product" IS '产品线表';
 -- ----------------------------
 INSERT INTO "public"."product" VALUES (1, '支付系统', '提供支付、查询等功能', 'v2.0开发中', '张无忌', '10086', '张三丰', '10087', '花无缺', '10088', '小鱼儿', '10089', 'v1.1.0', 'https://mojolicious.org', NULL, NULL, NULL, NULL, '2018-09-04 12:03:43', NULL);
 INSERT INTO "public"."product" VALUES (2, '领券系统', '提供领取优惠券的功能', '等待新需求', '张日山', '20086', '张起灵', '20087', '张启山', '10088', '张副官', '10089', 'v2.0.0', 'https://metacpan.org', NULL, NULL, NULL, NULL, '2018-09-05 14:04:33', NULL);
-INSERT INTO "public"."product" VALUES (4, '商品系统', '丰富的促销功能,让您促销活动随时做,商品特价、满赠、预售以及订单红包等活动形式多样,结合订货宝特有的游客模式、开放注册与商品分享,让您迅速拓展渠道。', '新创建', '紫霞仙子', 'zi-xia-xian-zi@gmail.com', '至尊宝', 'zhi-zun-bao@gmail.com', '铁扇公主', 'tie-shan@gmail.com', '蜘蛛精', 'zhi-zhu-jing@gmail.com', NULL, 'https://github.com/mojolicious/mojo-pg', '2018-09-09 16:32:16', '2018-09-09 17:08:32', 'admin', 'admin', NULL, NULL);
+INSERT INTO "public"."product" VALUES (4, '商品系统', '                                                丰富的促销功能,让您促销活动随时做,商品特价、满赠、预售以及订单红包等活动形式多样,结合订货宝特有的游客模式、开放注册与商品分享,让您迅速拓展渠道。
+                        
+                        ', '新创建', '紫霞仙子', 'zi-xia-xian-zi@gmail.com', '至尊宝', 'zhi-zun-bao@gmail.com', '铁扇公主', 'tie-shan@gmail.com', '蜘蛛精', 'zhi-zhu-jing@gmail.com', NULL, 'https://github.com/mojolicious/mojo-pg', '2018-09-09 16:32:16', '2018-09-20 18:00:44', 'admin', 'admin', NULL, NULL);
 
 -- ----------------------------
 -- Table structure for product_version
@@ -129,7 +240,7 @@ CREATE TABLE "public"."product_version" (
   "updateDate" timestamp(6) DEFAULT NULL::timestamp without time zone,
   "createUser" varchar(20) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
   "updateUser" varchar(20) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
-  "tags" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL
+  "tags" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying
 )
 ;
 COMMENT ON COLUMN "public"."product_version"."id" IS '版本id';
@@ -151,7 +262,6 @@ INSERT INTO "public"."product_version" VALUES (5, 2, 'v2.0.0', '张三丰', '201
 INSERT INTO "public"."product_version" VALUES (6, 1, 'v1.0.0', '张无忌', '2017-01-02 00:00:00', '2017-05-02 00:00:00', 'http://github.com', 0, 0, '10086', '张三丰', '10087', '花无缺', '10088', '小鱼儿', '10089', '2018-09-14 11:03:46', NULL, 'admin', NULL, NULL);
 INSERT INTO "public"."product_version" VALUES (7, 4, 'v1.0.0', '紫霞仙子', '2017-01-02 00:00:00', '2017-05-02 00:00:00', 'http://github.com', 2, 0, 'zi-xia-xian-zi@gmail.com', '至尊宝', 'zhi-zun-bao@gmail.com', '铁扇公主', 'tie-shan@gmail.com', '蜘蛛精', 'zhi-zhu-jing@gmail.com', '2018-09-14 11:05:53', NULL, 'admin', NULL, NULL);
 INSERT INTO "public"."product_version" VALUES (4, 2, 'v1.0.0', '张日山', '2018-01-02 00:00:00', '2019-01-02 00:00:00', 'http://github.com', 2, 0, '20086', '张起灵', '20087', '张启山', '10088', '张副官', '10089', '2018-09-14 10:50:57', '2018-09-15 09:27:38', 'admin', 'admin', NULL);
-INSERT INTO "public"."product_version" VALUES (8, 1, NULL, NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2018-09-15 14:23:28', NULL, 'admin', NULL, NULL);
 
 -- ----------------------------
 -- Table structure for server
@@ -159,28 +269,28 @@ INSERT INTO "public"."product_version" VALUES (8, 1, NULL, NULL, NULL, NULL, NUL
 DROP TABLE IF EXISTS "public"."server";
 CREATE TABLE "public"."server" (
   "id" int4 NOT NULL DEFAULT NULL,
-  "manageIp" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "sn" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "manufacturer" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "model" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "platform" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
+  "manageIp" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "sn" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "manufacturer" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "model" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "platform" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
   "version" varchar COLLATE "pg_catalog"."default" DEFAULT NULL,
   "cpuCount " int2 DEFAULT NULL,
   "cpuPhysicalCount" int2 DEFAULT NULL,
-  "cpuModel " varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "createDate" timestamp(6) DEFAULT NULL,
-  "createUser" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
+  "cpuModel " varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "createDate" timestamp(6) DEFAULT NULL::timestamp without time zone,
+  "createUser" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
   "updateUser" varchar COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "updateDate" timestamp(6) DEFAULT NULL,
-  "mac" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
+  "updateDate" timestamp(6) DEFAULT NULL::timestamp without time zone,
+  "mac" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
   "serialNum" varchar COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "name" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
+  "name" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
   "portNum " int2 DEFAULT NULL,
-  "intranetIp" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "user" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
-  "ip" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL,
+  "intranetIp" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "user" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
+  "ip" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying,
   "port" int2 DEFAULT NULL,
-  "desc" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL
+  "desc" varchar(255) COLLATE "pg_catalog"."default" DEFAULT NULL::character varying
 )
 ;
 COMMENT ON COLUMN "public"."server"."id" IS '资产id';
@@ -256,6 +366,22 @@ COMMENT ON TABLE "public"."versionEnv" IS '版本环境配置';
 -- Primary Key structure for table assets
 -- ----------------------------
 ALTER TABLE "public"."assets" ADD CONSTRAINT "assets_pkey" PRIMARY KEY ("id");
+
+-- ----------------------------
+-- Uniques structure for table kube_cluster
+-- ----------------------------
+ALTER TABLE "public"."kube_cluster" ADD CONSTRAINT "node_ip" UNIQUE ("ip");
+COMMENT ON CONSTRAINT "node_ip" ON "public"."kube_cluster" IS '服务器ip';
+
+-- ----------------------------
+-- Primary Key structure for table kube_cluster
+-- ----------------------------
+ALTER TABLE "public"."kube_cluster" ADD CONSTRAINT "kube_cluster_pkey" PRIMARY KEY ("id");
+
+-- ----------------------------
+-- Primary Key structure for table kube_config
+-- ----------------------------
+ALTER TABLE "public"."kube_config" ADD CONSTRAINT "kube_config_pkey" PRIMARY KEY ("id");
 
 -- ----------------------------
 -- Primary Key structure for table product
