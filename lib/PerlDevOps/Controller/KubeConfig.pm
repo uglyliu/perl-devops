@@ -161,32 +161,34 @@ sub install_k8s_task{
 	my $all_ip_str = array2str(\@all_ip_array);
 	my $all_host_str = array2str(\@all_host_array);
 	#1、config ssh login
-	
-	my @master_ip_array = keys master_ip_host_hash;
+	my @master_ip_array = keys %master_ip_host_hash;
 	my $master_ip_str = array2str(\@master_ip_array);
+
+	my @master_host_array = values %master_ip_host_hash;
+	my $master_host_str = array2str(\@master_host_array);
 
 	print_hash(\%cluster_ip_host_hash,"all cluster node");
 	print_hash(\%master_ip_host_hash,"all master node");
 
-	ssh_login($default_user,$default_pwd,$all_ip_str);
+	#ssh_login($default_user,$default_pwd,$all_ip_str);
 
 	#2、all node config hostname
-	update_host_config(\%cluster_ip_host_hash,$master_prefix,$node_prefix);
+	#update_host_config(\%cluster_ip_host_hash,$master_prefix,$node_prefix);
 	
 	#2.1、config hostname login
-	ssh_login($default_user,$default_pwd,$all_host_str);
+	#ssh_login($default_user,$default_pwd,$all_host_str);
 	
 	#3、all node update os config
-	update_sys_config($all_ip_str);
+	#update_sys_config($all_ip_str);
 	
 	#4、all node install docker v17.03
-	install_docker($all_ip_str);
+	#install_docker($all_ip_str);
 	
 	#5、all node install kubernetes
-	download_kubernetes($all_ip_str,$master_ip_str,$kubeConfig);
-	install_kubernetes($all_ip_str,$master_ip_str,$master_ip_array,$kubeConfig);
-
-	install_component($master_ip_str);
+	#download_kubernetes($all_ip_str,$master_ip_str,$kubeConfig);
+	#install_kubernetes($all_ip_str,$master_ip_str,\@master_ip_array,$kubeConfig);
+	my $kube_api_ip = $kubeConfig->{"kube_api_ip"}; 
+	install_component($master_ip_str,$master_host_str,$kube_api_ip);
 
 	$log->info("finish install k8s cluster");
 }
@@ -270,7 +272,7 @@ sub update_host_config{
 
 	while (my ($ip, $hostname) = each %$ip_hostname_hash) {
 		#1、clear config file：/etc/hosts and /etc/sysconfig/network
-		invoke_sys_command("/bin/sed -i \"/$master_prefix/d\" /etc/hosts;/bin/sed -i \"/$node_prefix/d\" /etc/hosts;/bin/sed -i \"/HOSTNAME=/d\" /etc/sysconfig/network;",$ip);
+		invoke_sys_command("/bin/sed -i \"/k8s/d\" /etc/hosts;/bin/sed -i \"/k8s/d\" /etc/hosts;/bin/sed -i \"/HOSTNAME=/d\" /etc/sysconfig/network;",$ip);
 		#2、update hostname 
 		invoke_sys_command("/bin/echo \"HOSTNAME=$hostname\" >> /etc/sysconfig/network;/bin/hostname $hostname",$ip);
 	}
@@ -289,43 +291,43 @@ sub update_host_config{
 
 #updage os config
 sub update_sys_config{
-	my $ip_str = shift;
+	my $all_ip_str = shift;
 
 	$log->info("--------------start update os config--------------");
 
 	#disable firewalld & selinux
-	invoke_sys_command("systemctl stop firewalld && systemctl disable firewalld",$ip_str);
-	invoke_sys_command("/bin/sed -i \"s/SELINUX=permissive/SELINUX=disabled/\" /etc/sysconfig/selinux",$ip_str);
-	invoke_sys_command("setenforce 0",$ip_str);
+	invoke_sys_command("systemctl stop firewalld && systemctl disable firewalld",$all_ip_str);
+	invoke_sys_command("/bin/sed -i \"s/SELINUX=permissive/SELINUX=disabled/\" /etc/sysconfig/selinux",$all_ip_str);
+	invoke_sys_command("setenforce 0",$all_ip_str);
 
 	#disable swap
-	invoke_sys_command("swapoff -a && sysctl -w vm.swappiness=0",$ip_str);
-	invoke_sys_command("/bin/sed -i \"/swap.img/d\" /etc/fstab",$ip_str);
+	invoke_sys_command("swapoff -a && sysctl -w vm.swappiness=0",$all_ip_str);
+	invoke_sys_command("/bin/sed -i \"/swap.img/d\" /etc/fstab",$all_ip_str);
 	#Redhat
-	#invoke_sys_command("/bin/sed -i \"s/\/dev\/mapper\/rhel-swap/\#\/dev\/mapper\/rhel-swap/g\" /etc/fstab",$ip_str);
+	#invoke_sys_command("/bin/sed -i \"s/\/dev\/mapper\/rhel-swap/\#\/dev\/mapper\/rhel-swap/g\" /etc/fstab",$all_ip_str);
 	#Centos
-	invoke_sys_command("/bin/sed -i \"s/\/dev\/mapper\/centos-swap/\#\/dev\/mapper\/centos-swap/g\" /etc/fstab",$ip_str);
-	invoke_sys_command("mount -a",$ip_str);
+	invoke_sys_command("/bin/sed -i \"s/\/dev\/mapper\/centos-swap/\#\/dev\/mapper\/centos-swap/g\" /etc/fstab",$all_ip_str);
+	invoke_sys_command("mount -a",$all_ip_str);
 	#open forward, Docker v1.13
-	invoke_sys_command("iptables -P FORWARD ACCEPT",$ip_str);
+	invoke_sys_command("iptables -P FORWARD ACCEPT",$all_ip_str);
 
 	$log->info("--------------finish update os config--------------");
 }
 
 # install docker
 sub install_docker{
-	my $ip_str = shift;
+	my $all_ip_str = shift;
 	$log->info("--------------start install Docker--------------");
 	#1、install last edition
-	#invoke_sys_command("curl -fsSL https://get.docker.com/ | sh",$ip_str);
+	#invoke_sys_command("curl -fsSL https://get.docker.com/ | sh",$all_ip_str);
 
 	#2、install specified version 
-	# invoke_sys_command("yum remove -y docker-ce docker-ce-selinux container-selinux",$ip_str);
-	# invoke_sys_command("yum install -y yum-utils device-mapper-persistent-data lvm2",$ip_str);
-	# invoke_sys_command("yum-config-manager --enable extras",$ip_str);
+	# invoke_sys_command("yum remove -y docker-ce docker-ce-selinux container-selinux",$all_ip_str);
+	# invoke_sys_command("yum install -y yum-utils device-mapper-persistent-data lvm2",$all_ip_str);
+	# invoke_sys_command("yum-config-manager --enable extras",$all_ip_str);
 	# invoke_sys_command("sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo",$ip_str);
-	# invoke_sys_command("yum-config-manager --enable docker-ce-edge",$ip_str);
-	# invoke_sys_command("yum makecache fast",$ip_str);
+	# invoke_sys_command("yum-config-manager --enable docker-ce-edge",$all_ip_str);
+	# invoke_sys_command("yum makecache fast",$all_ip_str);
 	# invoke_sys_command("yum install -y --setopt=obsoletes=0 docker-ce-17.03.1.ce-1.el7.centos docker-ce-selinux-17.03.1.ce-1.el7.centos",$ip_str);
 	
 	#3、install by rpm package
@@ -334,20 +336,20 @@ sub install_docker{
 		invoke_local_command("curl https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-selinux-17.03.3.ce-1.el7.noarch.rpm -o $tmp_dir/docker-ce-selinux.rpm --progress");
 	}
 	#upload file to remote nodes
-	upload_file_to_node("$tmp_dir/docker-ce.rpm","/temp",0,$ip_str);
-	upload_file_to_node("$tmp_dir/docker-ce-selinux.rpm","/temp",0,$ip_str);
+	upload_file_to_node("$tmp_dir/docker-ce.rpm","/temp",0,$all_ip_str);
+	upload_file_to_node("$tmp_dir/docker-ce-selinux.rpm","/temp",0,$all_ip_str);
 	#install docker
-	invoke_sys_command("yum -y localinstall /temp/docker-ce*.rpm",$ip_str);
+	invoke_sys_command("yum -y localinstall /temp/docker-ce*.rpm",$all_ip_str);
 	#config daemon.json
-	upload_file_to_node("$work_static_dir/daemon.json","/etc/docker",0,$ip_str);
+	upload_file_to_node("$work_static_dir/daemon.json","/etc/docker",0,$all_ip_str);
 	#direct-lvm config
 	#https://docs.docker.com/engine/userguide/storagedriver/device-mapper-driver/#configure-direct-lvm-mode-for-production
 	#start docker
-	invoke_sys_command("systemctl enable docker && systemctl restart docker",$ip_str);
-	invoke_sys_command("ps -ef | grep docker",$ip_str);
+	invoke_sys_command("systemctl enable docker && systemctl restart docker",$all_ip_str);
+	invoke_sys_command("ps -ef | grep docker",$all_ip_str);
     #config system net bridge
-    upload_file_to_node("$work_static_dir/k8s.conf","/etc/sysctl.d",0,$ip_str);
-	invoke_sys_command("sysctl -p /etc/sysctl.d/k8s.conf",$ip_str);
+    upload_file_to_node("$work_static_dir/k8s.conf","/etc/sysctl.d",0,$all_ip_str);
+	invoke_sys_command("sysctl -p /etc/sysctl.d/k8s.conf",$all_ip_str);
 	$log->info("--------------finish install Docker--------------");
 }
 
@@ -394,6 +396,9 @@ sub download_kubernetes{
 sub install_kubernetes{
 	my ($all_ip_str,$master_ip_str,$master_ip_array,$kubeConfig) = @_;
 	$log->info("--------------start config k8s CA --------------");
+
+	#clear old config
+	invoke_sys_command("rm -rf /etc/etcd/ssl/* /etc/kubernetes/*",$all_ip_str);
 
 	#download k8s-manual-files
 	unless(-d $pki_dir){
@@ -541,20 +546,33 @@ sub install_kubernetes{
 }
 
 sub install_component{
-	my $master_ip_str = shift;
+	my ($master_ip_str,$master_host_str,$kube_api_ip) = @_;
+
+	#clear old config file
+	invoke_sys_command("rm -rf /etc/etcd/config.yml /etc/haproxy/*",$master_ip_str);
+	invoke_sys_command("rm -rf /etc/kubernetes/manifests/* /etc/kubernetes/encryption/* /etc/kubernetes/audit/*",$master_ip_str);
+	invoke_sys_command("rm -rf /var/lib/kubelet /var/log/kubernetes /var/lib/etcd /lib/systemd/system/kubelet.service /etc/systemd/system/kubelet.service.d",$master_ip_str);
+
 	#check generate file /etc/etcd/config.yml、/etc/haproxy/haproxy.cfg
-	invoke_local_command("export NODES=\"$master_ip_str\";cd $k8s_manual_files;./hack/gen-configs.sh");
+	invoke_local_command("export NODES=\"$master_host_str\";cd $k8s_manual_files;./hack/gen-configs.sh");
 	
 	#generate Static pod YAML & EncryptionConfig
 	#check generate file /etc/kubernetes/manifests、/etc/kubernetes/encryption、/etc/kubernetes/audit
-	invoke_local_command("export NODES=\"$master_ip_str\";cd $k8s_manual_files;./hack/gen-manifests.sh");
-
+	## update $k8s_manual_files/hack/gen-manifests.sh set 172.22.132.9 = $kube_api_ip
+	invoke_local_command("export NODES=\"$master_host_str\";export ADVERTISE_VIP=\"$kube_api_ip\";cd $k8s_manual_files;echo \$ADVERTISE_VIP;echo \$NODES;./hack/gen-manifests.sh");
+	##update /etc/kubernetes/manifests/kube-apiserver.yml set '–insecure-port=8080'
+	invoke_sys_command("perl -pi -e 's/insecure-port=0/insecure-port=8080/gi' /etc/kubernetes/manifests/kube-apiserver.yml",$master_ip_str);
 	#config k8s component
 	invoke_sys_command("mkdir -p /var/lib/kubelet /var/log/kubernetes /var/lib/etcd /etc/systemd/system/kubelet.service.d",$master_ip_str);
 	upload_file_to_node("$k8s_manual_files/master/var/lib/kubelet/config.yml","/var/lib/kubelet/",0,$master_ip_str);
 	upload_file_to_node("$k8s_manual_files/master/systemd/kubelet.service","/lib/systemd/system/",0,$master_ip_str);
 	upload_file_to_node("$k8s_manual_files/master/systemd/10-kubelet.conf","/etc/systemd/system/kubelet.service.d/",0,$master_ip_str);
-
+	#
+	invoke_sys_command("cp /etc/kubernetes/admin.conf ~/",$master_ip_str);
+	invoke_sys_command("chown \$(id -u):\$(id -g) \$HOME/admin.conf",$master_ip_str);
+	invoke_sys_command("/bin/sed -i \"/KUBECONFIG/d\" \$HOME/.bash_profile",$master_ip_str);
+	invoke_sys_command('/bin/sed -i \"/PATH=/i KUBECONFIG=~/admin.conf\" ~/.bash_profile ',$master_ip_str);
+	invoke_sys_command("source ~/.bash_profile",$master_ip_str);
 	#start kubelet
 	invoke_sys_command("systemctl enable kubelet.service && systemctl start kubelet.service",$master_ip_str);
 
