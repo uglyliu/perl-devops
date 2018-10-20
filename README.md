@@ -93,3 +93,6 @@ git clone https://github.com/kairen/k8s-manual-files.git ~/k8s-manual-files
 [/etc/kubernetes/pki] [kubelet-k8s-11.11.11.112-key.pem	kubelet-k8s-11.11.11.112.pem]
 [/etc/kubernetes/pki] [kubelet-k8s-11.11.11.113-key.pem	kubelet-k8s-11.11.11.113.pem]
 [/etc/kubernetes/pki] [sa.key	sa.pub]
+
+
+https://www.jianshu.com/p/16d19d38ddb7
