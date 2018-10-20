@@ -53,7 +53,7 @@ $ morbo -l http://*:8080 -w ./ script/perl_dev_ops
 一个用于测试环境，如果有多个测试环境，如dev、test、uat，可通过namespace实现
 ```
 
-#### #mojo
+#### #mojo 
 https://kiwiirc.com/nextclient/#irc://irc.freenode.net/mojo?nick=guest-?
 #### #history
 https://freenode.logbot.info/mojo/20180925
@@ -78,21 +78,19 @@ https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64 (cfssljson)
 git clone https://github.com/kairen/k8s-manual-files.git ~/k8s-manual-files
 ```
 
+#### 生成的部分文件完整性检查
+```perl
+[/etc/etcd/ssl]		[etcd-ca-key.pem	etcd-ca.pem	etcd-key.pem	etcd.pem]
+[/etc/kubernetes/pki]	[ca-key.pem	ca.pem]
+[/etc/kubernetes/pki]	[apiserver-key.pem	apiserver.pem]
+[/etc/kubernetes/pki]	[front-proxy-ca-key.pem	front-proxy-ca.pem]
+[/etc/kubernetes/pki]	[front-proxy-client-key.pem	front-proxy-client.pem]
+[/etc/kubernetes/pki]	[controller-manager-key.pem	controller-manager.pem]
+[/etc/kubernetes/pki]	[scheduler-key.pem	scheduler.pem]
+[/etc/kubernetes/pki]	[admin-key.pem	admin.pem]
+[/etc/kubernetes/pki]	[kubelet-k8s-11.11.11.111-key.pem	kubelet-k8s-11.11.11.111.pem]
+[/etc/kubernetes/pki]	[kubelet-k8s-11.11.11.112-key.pem	kubelet-k8s-11.11.11.112.pem]
+[/etc/kubernetes/pki]	[kubelet-k8s-11.11.11.113-key.pem	kubelet-k8s-11.11.11.113.pem]
+[/etc/kubernetes/pki]	[sa.key	sa.pub]
+```
 
-
-
-[/etc/etcd/ssl] [etcd-ca-key.pem	etcd-ca.pem	etcd-key.pem	etcd.pem]
-[/etc/kubernetes/pki] [ca-key.pem	ca.pem]
-[/etc/kubernetes/pki] [apiserver-key.pem	apiserver.pem]
-[/etc/kubernetes/pki] [front-proxy-ca-key.pem	front-proxy-ca.pem]
-[/etc/kubernetes/pki] [front-proxy-client-key.pem	front-proxy-client.pem]
-[/etc/kubernetes/pki] [controller-manager-key.pem	controller-manager.pem]
-[/etc/kubernetes/pki] [scheduler-key.pem	scheduler.pem]
-[/etc/kubernetes/pki] [admin-key.pem	admin.pem]
-[/etc/kubernetes/pki] [kubelet-k8s-11.11.11.111-key.pem	kubelet-k8s-11.11.11.111.pem]
-[/etc/kubernetes/pki] [kubelet-k8s-11.11.11.112-key.pem	kubelet-k8s-11.11.11.112.pem]
-[/etc/kubernetes/pki] [kubelet-k8s-11.11.11.113-key.pem	kubelet-k8s-11.11.11.113.pem]
-[/etc/kubernetes/pki] [sa.key	sa.pub]
-
-
-https://www.jianshu.com/p/16d19d38ddb7
