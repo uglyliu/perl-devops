@@ -11,18 +11,19 @@ my $perl_install_dir = "/usr/local";
 #k8s install log，the frontend will read log content by websocket
 my $log_file = "/root/perl-devops/k8s-install.log";
 
-my $work_static_dir = "/root/perl-devops/static";
+my $root_dir = "/root/perl-devops";
+my $tmp_dir = "$root_dir/tmp";
+my $work_static_dir = "$root_dir/static";
 
 my $ca_dir = "$work_static_dir/ca";
 my $service_dir = "$work_static_dir/service";
+my $kubelet_dir = "$work_static_dir/kubelet";
 
-my $tmp_dir = "/root/perl-devops/tmp";
 #shoud be config by config file
 my $default_user = "root";
 my $default_pwd = "root";
 my $vip_nic_prefix = "vip_nic";
-my $k8s_manual_files = "/root/k8s-manual-files"; 
-my $pki_dir = "$k8s_manual_files/pki";
+my $pki_dir = "$work_static_dir/pki";
 my $tmp_host_route_ip = {};
 my $log = Mojo::Log->new(path => "$log_file");
 
@@ -180,7 +181,7 @@ sub install_k8s_task{
 	print_hash(\%master_ip_host_hash,"all master node");
 
 	#0、stop all container
-	stop($all_ip_str);
+	#stop($all_ip_str);
 	#1、config ssh login
 	#ssh_login($default_user,$default_pwd,$all_ip_str);
 
@@ -435,10 +436,6 @@ sub install_kubernetes{
 	#clear old config
 	invoke_sys_command("rm -rf /etc/etcd/ssl/* /etc/kubernetes/*",$all_ip_str);
 
-	#download k8s-manual-files
-	unless(-d $pki_dir){
-		invoke_local_command("git clone https://github.com/kairen/k8s-manual-files.git $k8s_manual_files");
-	}
 	
 	#config etcd CA
 	my $etcd_ca_dir = $kubeConfig->{"etcd_ca_dir"}; 
@@ -601,14 +598,14 @@ sub install_component{
 	#generate Static pod YAML & EncryptionConfig
 	#check generate file /etc/kubernetes/manifests、/etc/kubernetes/encryption、/etc/kubernetes/audit
 	generate_manifests_config($master_ip_host_hash,$k8s_dir,$kube_api_ip,$etcd_default_port);
-	invoke_local_command("export NODES=\"$master_host_str\";export ADVERTISE_VIP=\"$kube_api_ip\";cd $k8s_manual_files;echo \$ADVERTISE_VIP;echo \$NODES;./hack/gen-manifests.sh");
+	# invoke_local_command("export NODES=\"$master_host_str\";export ADVERTISE_VIP=\"$kube_api_ip\";cd $k8s_manual_files;echo \$ADVERTISE_VIP;echo \$NODES;./hack/gen-manifests.sh");
 	##update /etc/kubernetes/manifests/kube-apiserver.yml set '–insecure-port=8080'
 	invoke_sys_command("perl -pi -e 's/insecure-port=0/insecure-port=8080/gi' /etc/kubernetes/manifests/kube-apiserver.yml",$master_ip_str);
 	#config k8s component
 	invoke_sys_command("mkdir -p /var/lib/kubelet /var/log/kubernetes /var/lib/etcd /etc/systemd/system/kubelet.service.d",$master_ip_str);
-	upload_file_to_node("$k8s_manual_files/node/var/lib/kubelet/config.yml","/var/lib/kubelet/",0,$master_ip_str);
-	upload_file_to_node("$k8s_manual_files/node/systemd/10-kubelet.conf","/etc/systemd/system/kubelet.service.d/",0,$master_ip_str);
-	upload_file_to_node("$k8s_manual_files/node/systemd/kubelet.service","/lib/systemd/system/",0,$master_ip_str);
+	upload_file_to_node("$kubelet_dir/config.yml","/var/lib/kubelet/",0,$master_ip_str);
+	upload_file_to_node("$kubelet_dir/10-kubelet.conf","/etc/systemd/system/kubelet.service.d/",0,$master_ip_str);
+	upload_file_to_node("$kubelet_dir/kubelet.service","/lib/systemd/system/",0,$master_ip_str);
 	#
 	invoke_sys_command("/bin/cp -rfn /etc/kubernetes/admin.conf ~/",$master_ip_str);
 	invoke_sys_command("chown \$(id -u):\$(id -g) \$HOME/admin.conf",$master_ip_str);

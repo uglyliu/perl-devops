@@ -61,6 +61,30 @@ https://freenode.logbot.info/mojo/20180925
 
 
 #### 说明
+
+##### static/kubelet
+该目录中的文件会传输到各个master节点，用来配置自启动kubelet服务
+
+##### static/ca
+该目录中的文件用来生成各个组件的ca凭证
+
+##### static/pki 
+该目录中的文件用来生成各个组件的pki
+
+##### static/manifests
+该目录中的文件是各个组件的yaml配置文件
+
+##### static/encryption
+该目录中的文件是秘钥配置
+
+##### static/audit
+该目录中的文件是policy配置
+
+##### static/conf
+该目录中的文件是用来配置etcd和haproxy
+
+
+
 程序会自动下载以下工具包到/root/perl-devops/tmp临时目录
 ```perl
 https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-17.03.3.ce-1.el7.x86_64.rpm (docker-ce.rpm)
