@@ -37,14 +37,12 @@ host    all             all             远程ip/24       md5
 $ systemctl restart postgresql-10.service
 $ systemctl enable postgresql-10.service
 
-
-
 ### 安装Perl依赖
 ```perl
 $ sudo yum -y install openssl-devel perl-CPAN
 $ yum update nss curl
 $ curl -sSL https://cpanmin.us | perl - -M https://cpan.metacpan.org -n Mojolicious Mojo::Pg Minion Digest::MD5 Expect Compress::Raw::Zlib
-
+$ perl /root/perl-devops/install.pl
 $ morbo -l http://*:8080 -w ./ script/perl_dev_ops
 ```
 

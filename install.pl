@@ -25,6 +25,15 @@ foreach my $url (@urls){
 	$url =~ m#/(([^/]+)\.tar\.gz)#;
 	my $tar_name = $1;
 	my $dir_name = $2;
-	invoke_local_command("tar -xzvf $tar_name; cd $dir_name; perl Makefile.PL; make; make test; make install;");
-	invoke_local_command("rm -rf /root/perl-devops/$tar_name");
+	
+	if(-e $tar_name){
+		invoke_local_command("tar -xzvf $tar_name; cd $dir_name; perl Makefile.PL; make; make test; make install;");
+		if(-d $dir_name){
+			invoke_local_command("rm -rf /root/perl-devops/$tar_name /root/perl-devops/$dir_name");
+		}else{
+			say "rm $url error....not found...";
+		}
+	}else{
+		say "install $url error....";
+	}
 }
