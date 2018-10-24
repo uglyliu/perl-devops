@@ -16,6 +16,15 @@ $ vim /etc/profile
   export POSTGRES_HOME=/usr/pgsql-10
 $ source /etc/profile
 
+#初始化数据库
+$ cd /usr/pgsql-10/bin/
+$ ./postgresql-10-setup initdb
+
+$ su - postgres
+psql
+postgres=# alter user postgres with password '123456';
+```
+
 $ mkdir /usr/pgsql-10/include
 
 #支持远程客户端连接
@@ -28,19 +37,13 @@ host    all             all             远程ip/24       md5
 $ systemctl restart postgresql-10.service
 $ systemctl enable postgresql-10.service
 
-#初始化数据库
-$ cd /usr/pgsql-10/bin/
-$ ./postgresql-10-setup initdb
 
-$ su - postgres
-psql
-postgres=# alter user postgres with password '123456';
-```
 
 ### 安装Perl依赖
 ```perl
-$ sudo yum -y install perl-CPAN
-$ curl -L https://cpanmin.us | perl - -M https://cpan.metacpan.org -n Mojolicious Mojo::Pg Minion Digest::MD5 Expect Compress::Raw::Zlib
+$ sudo yum -y install openssl-devel perl-CPAN
+$ yum update nss curl
+$ curl -sSL https://cpanmin.us | perl - -M https://cpan.metacpan.org -n Mojolicious Mojo::Pg Minion Digest::MD5 Expect Compress::Raw::Zlib
 
 $ morbo -l http://*:8080 -w ./ script/perl_dev_ops
 ```

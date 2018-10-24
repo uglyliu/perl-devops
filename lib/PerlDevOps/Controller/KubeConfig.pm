@@ -160,10 +160,17 @@ sub install_k8s_task{
 
 	my @master_node_array = grep $_ -> {"type"} eq "master" , @$cluster_node_array;
 
+	my @node_array = grep $_ -> {"type"} eq "node" , @$cluster_node_array;
+
 	my %master_ip_host_hash =  map { 
 		$_ -> {"ip"} , 
 		$master_prefix.$_ -> {'id'}
 	} @master_node_array;
+
+	my %node_ip_host_hash =  map { 
+		$_ -> {"ip"} , 
+		$node_prefix.$_ -> {'id'}
+	} @node_array;
 
 	my @all_ip_array = keys %cluster_ip_host_hash;
 	my @all_host_array = values %cluster_ip_host_hash;
@@ -177,33 +184,38 @@ sub install_k8s_task{
 	my @master_host_array = values %master_ip_host_hash;
 	my $master_host_str = array2str(\@master_host_array);
 
+	my @node_ip_array = keys %node_ip_host_hash;
+	my $node_ip_str = array2str(\@node_ip_array);
+
 	print_hash(\%cluster_ip_host_hash,"all cluster node");
 	print_hash(\%master_ip_host_hash,"all master node");
+	print_hash(\%node_ip_host_hash,"all node");
 
 	#0、stop all container
 	#stop($all_ip_str);
 	#1、config ssh login
-	#ssh_login($default_user,$default_pwd,$all_ip_str);
+	ssh_login($default_user,$default_pwd,$all_ip_str);
 
 	#2、all node config hostname
 	update_host_config(\%cluster_ip_host_hash,$master_prefix,$node_prefix);
 	
 	#2.1、config hostname login
-	#ssh_login($default_user,$default_pwd,$all_host_str);
+	ssh_login($default_user,$default_pwd,$all_host_str);
 	
 	#3、all node update os config
 	update_sys_config($all_ip_str);
 	
 	#4、all node install docker v17.03
 	#install_docker($all_ip_str);
-	
+	#4、pull images
+	#pull_images($master_ip_str,$node_ip_str);
 	#5、all node install kubernetes
 	#download_kubernetes($all_ip_str,$master_ip_str,$kubeConfig);
-	install_kubernetes($all_ip_str,$master_ip_str,\@master_ip_array,\%master_ip_host_hash,$kubeConfig);
+	#install_kubernetes($all_ip_str,$master_ip_str,\@master_ip_array,\%master_ip_host_hash,$kubeConfig);
 	#6、master node install component
 	my $kube_api_ip = $kubeConfig->{"kube_api_ip"}; 
 	my $k8s_dir = $kubeConfig->{"kube_dir"}; 
-	install_component(\%master_ip_host_hash,$k8s_dir,$etcd_default_port,$haproxy_default_port,$kube_api_ip);
+	#install_component(\%master_ip_host_hash,$k8s_dir,$etcd_default_port,$haproxy_default_port,$kube_api_ip);
 	#7、config k8s cluster enable service
 	#config_enable_start($master_ip_str,$all_ip_str);
 	$log->info("finish install k8s cluster");
@@ -211,8 +223,9 @@ sub install_k8s_task{
 
 sub stop{
 	my $all_ip_str = shift;
-	invoke_sys_command("docker stop \$(docker ps -a -q)",$all_ip_str);
-	invoke_sys_command("docker rm \$(docker ps -a -q)",$all_ip_str);
+	invoke_sys_command("systemctl stop kubelet.service",$all_ip_str);
+	invoke_sys_command("docker stop \\\$(docker ps -a -q)",$all_ip_str);
+	invoke_sys_command("docker rm \\\$(docker ps -a -q)",$all_ip_str);
 }
 
 sub log{
@@ -597,7 +610,7 @@ sub install_component{
 
 	#generate Static pod YAML & EncryptionConfig
 	#check generate file /etc/kubernetes/manifests、/etc/kubernetes/encryption、/etc/kubernetes/audit
-	generate_manifests_config($master_ip_host_hash,$k8s_dir,$kube_api_ip,$etcd_default_port);
+	generate_manifests_config($master_ip_host_hash,$k8s_dir,$kube_api_ip,$etcd_default_port,$haproxy_default_port);
 	# invoke_local_command("export NODES=\"$master_host_str\";export ADVERTISE_VIP=\"$kube_api_ip\";cd $k8s_manual_files;echo \$ADVERTISE_VIP;echo \$NODES;./hack/gen-manifests.sh");
 	##update /etc/kubernetes/manifests/kube-apiserver.yml set '–insecure-port=8080'
 	invoke_sys_command("perl -pi -e 's/insecure-port=0/insecure-port=8080/gi' /etc/kubernetes/manifests/kube-apiserver.yml",$master_ip_str);
@@ -639,7 +652,7 @@ sub get_ip_route{
 
 sub generate_etcd_haproxy_config{
 	my ($master_ip_host_hash,$etcd_default_port,$haproxy_default_port) = @_;
-
+	#todo etcd_port = 2380
 	my $etcd_port = 2380;
 	my $haproxy_port = $haproxy_default_port // 6443;
 
@@ -654,7 +667,7 @@ sub generate_etcd_haproxy_config{
 	} @master_ip_array);
 
 	while (my ($ip, $host) = each %$master_ip_host_hash) {
-	   my $public_ip = $tmp_host_ip -> {$host} // $ip;
+	   my $public_ip = $tmp_host_route_ip -> {$host} // $ip;
 	   #edit etcd's config.yml
 	   invoke_local_command("/bin/cp -rfn $work_static_dir/config.yml /etc/etcd/config-$ip.xml");
 	   invoke_local_command("/bin/sed -i \"s/\\\${HOSTNAME}/$host/g\" /etc/etcd/config-$ip.xml");
@@ -674,10 +687,10 @@ sub generate_etcd_haproxy_config{
 }
 
 sub generate_manifests_config{
-	my ($master_ip_host_hash,$k8s_dir,$default_advertise_vip,$etcd_default_port) = @_;
+	my ($master_ip_host_hash,$k8s_dir,$default_advertise_vip,$etcd_default_port,$haproxy_default_port) = @_;
 	my $haproxy_port = $haproxy_default_port // 6443;
 	my @master_ip_array = keys %$master_ip_host_hash;
-
+	#todo etcd_port = 2379
 	my $etcd_port = 2379;
 	my $manifests_dir = $k8s_dir."/manifests";
 	my $encryption_dir = $k8s_dir."/encryption";
@@ -805,6 +818,68 @@ sub upload_file_to_node{
 	}
 	$log->info("upload file,then select file.....");
 	#invoke_sys_command("ls $real_target_dir",$ipstr);
+}
+
+sub pull_images{
+	my ($master_host_str,$node_host_str) = @_;
+	$log->info("--------------start pull_master_images--------------");
+	my %master_images_hash = (
+		"kube-proxy-amd64:v1.11.0"	=>	"k8s.gcr.io/",
+		"kube-scheduler-amd64:v1.11.0"	=>	"k8s.gcr.io/",
+		"kube-controller-manager-amd64:v1.11.0"	=>	"k8s.gcr.io/",
+		"kube-apiserver-amd64:v1.11.0"	=>	"k8s.gcr.io/",
+		"etcd-amd64:3.2.18"	=>	"k8s.gcr.io/",
+		"coredns:1.1.3"	=>	"k8s.gcr.io/",
+		"kubernetes-dashboard-amd64:v1.8.3"	=>	"k8s.gcr.io/",
+		"k8s-dns-sidecar-amd64:1.14.8"	=>	"k8s.gcr.io/",
+		"k8s-dns-kube-dns-amd64:1.14.8"	=>	"k8s.gcr.io/",
+		"k8s-dns-dnsmasq-nanny-amd64:1.14.8"	=>	"k8s.gcr.io/",
+		"pause:3.1"	=>	"k8s.gcr.io/",
+		"etcd:v3.3.8"	=>	"quay.io/coreos/",
+		"keepalived:1.4.5"	=>	"osixia/",
+		"flannel:v0.10.0-amd64"	=>	"quay.io/coreos/",
+		"haproxy:1.7-alpine"	=>	""
+	);
+	my $default_docker_hub = "limengyu1990";
+	pull_docker_hub(\%master_images_hash,$default_docker_hub,$master_host_str);
+	$log->info("--------------start pull_node_images--------------");
+	# my %node_images_hash = (
+	# 	"kube-proxy-amd64:v1.11.0"	=>	"k8s.gcr.io/",	
+	# 	"pause:3.1"	=>	"k8s.gcr.io/",
+	# 	"kubernetes-dashboard-amd64:v1.8.3"	=>	"k8s.gcr.io/",
+	# 	"heapster-influxdb-amd64:v1.3.3"	=>	"k8s.gcr.io/",
+	# 	"heapster-grafana-amd64:v4.4.3"	=>	"k8s.gcr.io/",
+	# 	"heapster-amd64:v1.4.2"	=>	"k8s.gcr.io/",
+	# 	"flannel:v0.10.0-amd64"	=>	"quay.io/coreos/",
+	# );
+	# pull_docker_hub(\%node_images_hash,$default_docker_hub,$node_host_str);
+	$log->info("--------------finish pull_images--------------");
+}
+
+# docker push limengyu1990/pause:3.1
+sub push_docker_hub{
+	my ($images,$hub_prefix,$ip_str) = @_;
+	foreach my $imageName (@$images){
+		invoke_sys_command("docker push $hub_prefix/$imageName",$ip_str);
+	}
+}
+
+# docker pull limengyu1990/etcd:v3.3.8
+# $hub_prefix = limengyu1990
+# $target_prefix = quay.io/coreos
+sub pull_docker_hub{
+	my ($images_hash,$default_docker_hub,$ip_str) = @_;
+	while (my ($imageName, $imageSource) = each %$images_hash) {
+	  	invoke_sys_command("docker pull $default_docker_hub/$imageName",$ip_str);
+		invoke_sys_command("docker tag $default_docker_hub/$imageName $imageSource$imageName",$ip_str);
+		invoke_sys_command("docker rmi $default_docker_hub/$imageName",$ip_str);
+	}
+}
+
+sub check_docker_images{
+	my ($images,$ip_str) = @_;
+	invoke_sys_command("docker images",$ip_str);
+
 }
 
 1;
