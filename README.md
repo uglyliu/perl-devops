@@ -6,60 +6,25 @@
 ![](img/assets.png)
 ![](img/k8s.png)
 
-### 安装PostgreSQL
-```shell
-$ wget https://download.postgresql.org/pub/repos/yum/10/redhat/rhel-7-x86_64/pgdg-centos10-10-2.noarch.rpm
-$ rpm -ivh pgdg-centos10-10-2.noarch.rpm
-$ yum install -y postgresql10-server postgresql10-contrib postgresql-devel
-
-$ vim /etc/profile
-  export POSTGRES_HOME=/usr/pgsql-10
-$ source /etc/profile
-
-#初始化数据库
-$ cd /usr/pgsql-10/bin/
-$ ./postgresql-10-setup initdb
-
-$ su - postgres
-psql
-postgres=# alter user postgres with password '123456';
-```
-
-$ mkdir /usr/pgsql-10/include
-
-#支持远程客户端连接
-$ vim /var/lib/pgsql/10/data/postgresql.conf
-listen_addresses = '*'
-#添加策略
-$ vim /var/lib/pgsql/10/data/pg_hba.conf
-host    all             all             远程ip/24       md5
-
-$ systemctl restart postgresql-10.service
-$ systemctl enable postgresql-10.service
-
-### 安装Perl依赖
+### 安装依赖 & 启动
 ```perl
-$ sudo yum -y install openssl-devel perl-CPAN
-$ yum update nss curl
-$ curl -sSL https://cpanmin.us | perl - -M https://cpan.metacpan.org -n Mojolicious Mojo::Pg Minion Digest::MD5 Expect Compress::Raw::Zlib
-$ perl /root/perl-devops/install.pl
-$ morbo -l http://*:8080 -w ./ script/perl_dev_ops
+$ cd /root/perl_devops && perl install.pl
+
+$ morbo -l http://*:3000 -w ./ script/perl_dev_ops
 ```
 
 
 ### Kubernetes集群
 ```perl
+部署k8s集群前，需要将各个服务器节点的root用户密码配置好(当前版本只支持root用户执行)
+
 建议部署两个集群：
 一个用于生产环境(pro)
 一个用于测试环境，如果有多个测试环境，如dev、test、uat，可通过namespace实现
+
+
+测试环境可以使用虚拟机来完成，Vagrantfile文件是VirtualBox虚拟机配置
 ```
-
-#### #mojo 
-https://kiwiirc.com/nextclient/#irc://irc.freenode.net/mojo?nick=guest-?
-#### #history
-https://freenode.logbot.info/mojo/20180925
-
-
 
 #### 说明
 
@@ -99,8 +64,8 @@ https://github.com/containernetworking/plugins/releases/download/v0.7.1/cni-plug
 
 https://pkg.cfssl.org/R1.2/cfssl_linux-amd64 (cfssl)
 https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64 (cfssljson)
+https://pkg.cfssl.org/R1.2/cfssl-certinfo_linux-amd64 (cfssl-certinfo)
 
-git clone https://github.com/kairen/k8s-manual-files.git ~/k8s-manual-files
 ```
 
 #### 生成的部分文件完整性检查

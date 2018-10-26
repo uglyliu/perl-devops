@@ -8,8 +8,7 @@ use File::Basename;
 #perl install dir
 my $perl_install_dir = "/usr/local";
 
-#k8s install log，the frontend will read log content by websocket
-my $log_file = "/root/perl-devops/k8s-install.log";
+
 
 my $root_dir = "/root/perl-devops";
 my $tmp_dir = "$root_dir/tmp";
@@ -19,6 +18,9 @@ my $ca_dir = "$work_static_dir/ca";
 my $service_dir = "$work_static_dir/service";
 my $kubelet_dir = "$work_static_dir/kubelet";
 
+#k8s install log，the frontend will read log content by websocket
+my $log_file = "$tmp_dir/k8s-install.log";
+
 #shoud be config by config file
 my $default_user = "root";
 my $default_pwd = "root";
@@ -26,7 +28,8 @@ my $vip_nic_prefix = "vip_nic";
 my $pki_dir = "$work_static_dir/pki";
 my $tmp_host_route_ip = {};
 my $log = Mojo::Log->new(path => "$log_file");
-
+my $default_docker_hub = "limengyu1990";
+my $default_retry_time_flag = 0;
 
 sub index{
 	my $self = shift;
@@ -194,24 +197,24 @@ sub install_k8s_task{
 	#0、stop all container
 	#stop($all_ip_str);
 	#1、config ssh login
-	ssh_login($default_user,$default_pwd,$all_ip_str);
+	#ssh_login($default_user,$default_pwd,$all_ip_str);
 
 	#2、all node config hostname
-	update_host_config(\%cluster_ip_host_hash,$master_prefix,$node_prefix);
+	#update_host_config(\%cluster_ip_host_hash,$master_prefix,$node_prefix);
 	
 	#2.1、config hostname login
-	ssh_login($default_user,$default_pwd,$all_host_str);
+	#ssh_login($default_user,$default_pwd,$all_host_str);
 	
 	#3、all node update os config
-	update_sys_config($all_ip_str);
+	#update_sys_config($all_ip_str);
 	
 	#4、all node install docker v17.03
 	#install_docker($all_ip_str);
 	#4、pull images
-	#pull_images($master_ip_str,$node_ip_str);
+	#pull_master_images($master_ip_str);
 	#5、all node install kubernetes
-	#download_kubernetes($all_ip_str,$master_ip_str,$kubeConfig);
-	#install_kubernetes($all_ip_str,$master_ip_str,\@master_ip_array,\%master_ip_host_hash,$kubeConfig);
+	download_kubernetes($all_ip_str,$master_ip_str,$kubeConfig,0);
+	install_kubernetes($all_ip_str,$master_ip_str,\@master_ip_array,\%master_ip_host_hash,$kubeConfig);
 	#6、master node install component
 	my $kube_api_ip = $kubeConfig->{"kube_api_ip"}; 
 	my $k8s_dir = $kubeConfig->{"kube_dir"}; 
@@ -270,21 +273,25 @@ sub replace_str{
 #$ipstr: ip str by space separated
 sub ssh_login{
 	my ($user,$passwd,$ipstr) = @_;
-	$log->info("will Permanently added [$user] [$ipstr] (ECDSA) to the list of known hosts.");
-
-	my $ssh_command = "su - $user -c \"$perl_install_dir/bin/key2nodes -u $user $ipstr\"";
 	
+	my $ssh_command = "su - $user -c \"$perl_install_dir/bin/key2nodes -u $user $ipstr\"";	
 	$log->info("----------- start ssh secret key login config ----------");
 	$log->info("will exec command: [$ssh_command]");
 	
 	my $obj = Expect->spawn($ssh_command) or $log->error("Couldn't exec command: [$ssh_command]");
-	
-	my ( $pos, $err, $match, $before, $after ) = $obj->expect(10,
+	$log->info("will Permanently added [$user] [$ipstr] (ECDSA) to the list of known hosts.");
+	my ($pos, $err, $match, $before, $after) = $obj->expect(60,
+			[ qr#Enter passphrase#i,
+			  sub{ my $self = shift; $self->send("\r"); exp_continue;}
+			],
+			[ qr#yes/no#i,
+			  sub{ my $self = shift; $self->send("yes\r"); exp_continue;}
+			],
 			[ qr/Password:/i,
 			  sub{ my $self = shift; $self->send("$passwd\r"); exp_continue;}
 			]
 	);
-	$obj->soft_close( );
+	$obj->soft_close();
 	$log->info("------------ finish ssh secret key login config  -----");
 }
 
@@ -381,12 +388,14 @@ sub install_docker{
 		invoke_local_command("curl https://download.docker.com/linux/centos/7/x86_64/stable/Packages/docker-ce-selinux-17.03.3.ce-1.el7.noarch.rpm -o $tmp_dir/docker-ce-selinux.rpm --progress");
 	}
 	#upload file to remote nodes
-	upload_file_to_node("$tmp_dir/docker-ce.rpm","/temp",0,$all_ip_str);
-	upload_file_to_node("$tmp_dir/docker-ce-selinux.rpm","/temp",0,$all_ip_str);
+	upload_file_to_node("$tmp_dir/docker-ce.rpm","/tmp",0,$all_ip_str);
+	upload_file_to_node("$tmp_dir/docker-ce-selinux.rpm","/tmp",0,$all_ip_str);
 	#install docker
-	invoke_sys_command("yum -y localinstall /temp/docker-ce*.rpm",$all_ip_str);
+	invoke_sys_command("yum -y localinstall /tmp/docker-ce*.rpm",$all_ip_str);
 	#config daemon.json
 	upload_file_to_node("$work_static_dir/daemon.json","/etc/docker",0,$all_ip_str);
+	#https://www.daocloud.io/mirror
+	invoke_sys_command("curl -sSL https://get.daocloud.io/daotools/set_mirror.sh | sh -s http://f1361db2.m.daocloud.io",$all_ip_str);
 	#direct-lvm config
 	#https://docs.docker.com/engine/userguide/storagedriver/device-mapper-driver/#configure-direct-lvm-mode-for-production
 	#start docker
@@ -396,30 +405,38 @@ sub install_docker{
     upload_file_to_node("$work_static_dir/k8s.conf","/etc/sysctl.d",0,$all_ip_str);
 	invoke_sys_command("sysctl -p /etc/sysctl.d/k8s.conf",$all_ip_str);
 	$log->info("--------------finish install Docker--------------");
+	#todo check & ensure all node have install docker
 }
 
 #download kubernetes resources
+#no_override = 0 means again download
 sub download_kubernetes{
-	my ($all_ip_str,$master_ip_str) = @_;
+	my ($all_ip_str,$master_ip_str,$no_override) = @_;
 	$log->info("-------------- start download k8s file --------------");
-	unless (-e "$tmp_dir/kubelet") {
-		invoke_local_command("curl https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubelet -o $tmp_dir/kubelet --progress");
+	unless (-e "$tmp_dir/kubelet" && $no_override) {
+		$log->info("-------------- start download kubelet --------------");
+		invoke_local_command("curl -s https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubelet -o $tmp_dir/kubelet");
 	}
 	#master node must install kubectl
-	unless (-e "$tmp_dir/kubectl") {
-		invoke_local_command("curl https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubectl -o $tmp_dir/kubectl --progress");
+	unless (-e "$tmp_dir/kubectl" && $no_override) {
+		$log->info("-------------- start download kubectl --------------");
+		invoke_local_command("curl -s https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubectl -o $tmp_dir/kubectl");
 	}
-	unless (-e "$tmp_dir/cni-plugins-amd64-v0.7.1.tgz") {
-		invoke_local_command("curl https://github.com/containernetworking/plugins/releases/download/v0.7.1/cni-plugins-amd64-v0.7.1.tgz -o $tmp_dir/cni-plugins-amd64-v0.7.1.tgz --progress");
+	unless (-e "$tmp_dir/cni-plugins-amd64-v0.7.1.tgz" && $no_override) {
+		$log->info("-------------- start download cni-plugins-amd64-v0.7.1.tgz --------------");
+		invoke_local_command("curl -s https://github.com/containernetworking/plugins/releases/download/v0.7.1/cni-plugins-amd64-v0.7.1.tgz -o $tmp_dir/cni-plugins-amd64-v0.7.1.tgz");
 	}
-	unless (-e "$tmp_dir/cfssl") {
-		invoke_local_command("curl https://pkg.cfssl.org/R1.2/cfssl_linux-amd64 -o $tmp_dir/cfssl --progress");
+	unless (-e "$tmp_dir/cfssl" && $no_override) {
+		$log->info("-------------- start download cfssl --------------");
+		invoke_local_command("wget https://pkg.cfssl.org/R1.2/cfssl_linux-amd64 -O $tmp_dir/cfssl");
 	}
-	unless (-e "$tmp_dir/cfssljson") {
-		invoke_local_command("curl https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64 -o $tmp_dir/cfssljson --progress");
+	unless (-e "$tmp_dir/cfssljson" && $no_override) {
+		$log->info("-------------- start download cfssljson --------------");
+		invoke_local_command("wget https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64 -O $tmp_dir/cfssljson");
 	}
-	unless (-e "$tmp_dir/cfssl-certinfo") {
-		invoke_local_command("curl https://pkg.cfssl.org/R1.2/cfssl-certinfo_linux-amd64 -o $tmp_dir/cfssl-certinfo --progress");
+	unless (-e "$tmp_dir/cfssl-certinfo" && $no_override) {
+		$log->info("-------------- start download cfssl-certinfo --------------");
+		invoke_local_command("wget https://pkg.cfssl.org/R1.2/cfssl-certinfo_linux-amd64 -O $tmp_dir/cfssl-certinfo");
 	}
 
 	#upload kubelet to all node & chmod +x /usr/local/bin/kubelet
@@ -777,8 +794,8 @@ sub invoke_local_command{
 #use for invoke remote system command
 sub invoke_sys_command{
 	my ($command,$ip_str) = @_;
-
-	my $exec_command = "su - $default_user -c '\"$perl_install_dir\"/bin/atnodes -L -u $default_user \"$command\" \"$ip_str\"'";
+	my $exec_command = "su - $default_user -c 'atnodes -L -u $default_user \"$command\" \"$ip_str\"'";
+	$log->info("remote: [$exec_command]");
 	my $exec_result = `$exec_command`;
 	$log->info("remote: [$exec_command] [$exec_result]");
 	chomp($exec_result);
@@ -820,15 +837,18 @@ sub upload_file_to_node{
 	#invoke_sys_command("ls $real_target_dir",$ipstr);
 }
 
-sub pull_images{
-	my ($master_host_str,$node_host_str) = @_;
+sub pull_master_images{
+	my $master_ip_str = shift;
 	$log->info("--------------start pull_master_images--------------");
+
+	upload_file_to_node("$root_dir/pull_master_images.sh","/tmp",0,$master_ip_str);
+	invoke_sys_command("chmod +x /tmp/pull_master_images.sh && sh /tmp/pull_master_images.sh",$master_ip_str);
+
 	my %master_images_hash = (
 		"kube-proxy-amd64:v1.11.0"	=>	"k8s.gcr.io/",
 		"kube-scheduler-amd64:v1.11.0"	=>	"k8s.gcr.io/",
 		"kube-controller-manager-amd64:v1.11.0"	=>	"k8s.gcr.io/",
 		"kube-apiserver-amd64:v1.11.0"	=>	"k8s.gcr.io/",
-		"etcd-amd64:3.2.18"	=>	"k8s.gcr.io/",
 		"coredns:1.1.3"	=>	"k8s.gcr.io/",
 		"kubernetes-dashboard-amd64:v1.8.3"	=>	"k8s.gcr.io/",
 		"k8s-dns-sidecar-amd64:1.14.8"	=>	"k8s.gcr.io/",
@@ -840,20 +860,51 @@ sub pull_images{
 		"flannel:v0.10.0-amd64"	=>	"quay.io/coreos/",
 		"haproxy:1.7-alpine"	=>	""
 	);
-	my $default_docker_hub = "limengyu1990";
-	pull_docker_hub(\%master_images_hash,$default_docker_hub,$master_host_str);
+	my $not_exist_images_ip = check_docker_images(\%master_images_hash,$master_ip_str);
+
+	if ($not_exist_images_ip) {
+		if($default_retry_time_flag < 3){
+			$default_retry_time_flag++;
+			say "=====================>$not_exist_images_ip";
+			pull_master_images($not_exist_images_ip);
+		}else{
+			return;
+		}
+	}
 	$log->info("--------------start pull_node_images--------------");
-	# my %node_images_hash = (
-	# 	"kube-proxy-amd64:v1.11.0"	=>	"k8s.gcr.io/",	
-	# 	"pause:3.1"	=>	"k8s.gcr.io/",
-	# 	"kubernetes-dashboard-amd64:v1.8.3"	=>	"k8s.gcr.io/",
-	# 	"heapster-influxdb-amd64:v1.3.3"	=>	"k8s.gcr.io/",
-	# 	"heapster-grafana-amd64:v4.4.3"	=>	"k8s.gcr.io/",
-	# 	"heapster-amd64:v1.4.2"	=>	"k8s.gcr.io/",
-	# 	"flannel:v0.10.0-amd64"	=>	"quay.io/coreos/",
-	# );
-	# pull_docker_hub(\%node_images_hash,$default_docker_hub,$node_host_str);
-	$log->info("--------------finish pull_images--------------");
+	$default_retry_time_flag = 0;
+	$log->info("--------------finish pull_master_images--------------");
+}
+
+sub pull_node_images{
+	my $node_ip_str = shift;
+	$log->info("--------------start pull_node_images--------------");
+
+	upload_file_to_node("$root_dir/pull_node_images.sh","/tmp",0,$node_ip_str);
+	invoke_sys_command("chmod +x /tmp/pull_node_images.sh && sh /tmp/pull_node_images.sh",$node_ip_str);
+
+	my %node_images_hash = (
+		"kube-proxy-amd64:v1.11.0"	=>	"k8s.gcr.io/",	
+		"pause:3.1"	=>	"k8s.gcr.io/",
+		"kubernetes-dashboard-amd64:v1.8.3"	=>	"k8s.gcr.io/",
+		"heapster-influxdb-amd64:v1.3.3"	=>	"k8s.gcr.io/",
+		"heapster-grafana-amd64:v4.4.3"	=>	"k8s.gcr.io/",
+		"heapster-amd64:v1.4.2"	=>	"k8s.gcr.io/",
+		"flannel:v0.10.0-amd64"	=>	"quay.io/coreos/",
+	);
+	my $not_exist_images_ip = check_docker_images(\%node_images_hash,$node_ip_str);
+
+	if ($not_exist_images_ip) {
+		if($default_retry_time_flag < 3){
+			$default_retry_time_flag++;
+			say "=====================>$not_exist_images_ip";
+			pull_node_images($not_exist_images_ip);
+		}else{
+			return;
+		}
+	}
+	$default_retry_time_flag = 0;
+	$log->info("--------------finish pull_node_images--------------");
 }
 
 # docker push limengyu1990/pause:3.1
@@ -877,9 +928,42 @@ sub pull_docker_hub{
 }
 
 sub check_docker_images{
-	my ($images,$ip_str) = @_;
-	invoke_sys_command("docker images",$ip_str);
+	my ($images_hash,$ip_str) = @_;
+	my @ip_array = split(" ",$ip_str);
+	my @not_exist_ip = ();
+	foreach my $ip (@ip_array){
+		my $result = invoke_sys_command("docker images",$ip);
+		my $images_result = parse_docker_images($result);
+		#print_hash($images_result,"$ip===========>images");
+		while (my ($imageName, $imageSource) = each %$images_hash) {
+			unless(exists $images_result->{"$imageSource$imageName"}){
+				$log->error("docker image not exist[$ip]========>$imageSource$imageName");
+				push(@not_exist_ip, $ip);
+			}
+		}
+	}
+	my $not_exist_ip_str = array2str(\@not_exist_ip);
+	return $not_exist_ip_str;
+}
 
+sub parse_docker_images{
+	my $result_line = shift;
+	my %ip_image_name = ();
+	my @lines = split(/\n/,$result_line);
+	foreach my $line (@lines) {
+		unless ($line !~ m/REPOSITORY/) {
+			next;
+		}
+		unless ($line !~ m/=========/) {
+			next;
+		}
+		my @current_line = split(" ",$line);
+		$log->debug("~~~~~~~~~~~~~~~>$line");
+		my $i_name = $current_line[2];
+		my $i_source = $current_line[1];
+		$ip_image_name{"$i_source:$i_name"}=$current_line[4];
+	}
+	return \%ip_image_name;
 }
 
 1;
