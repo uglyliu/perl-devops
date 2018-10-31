@@ -73,3 +73,4 @@ install_perl_modules();
 
 say "-------------------------------->check perl modules";
 invoke_local_command("perl /root/perl-devops/check.pl");
+say "please exec command to start server:  morbo -l http://*:3000 -w ./ script/perl_dev_ops";

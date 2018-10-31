@@ -98,6 +98,11 @@ sub startup {
 
   #安装k8s任务
   $self->app->minion->add_task(install_k8s_task => \&PerlDevOps::Controller::KubeConfig::install_k8s_task);
+  #安装master节点镜像
+  $self->app->minion->add_task(pull_master_images => \&PerlDevOps::Controller::KubeConfig::pull_master_images);
+  #安装node节点镜像
+  $self->app->minion->add_task(pull_node_images => \&PerlDevOps::Controller::KubeConfig::pull_node_images);
+
 }
 
 1;

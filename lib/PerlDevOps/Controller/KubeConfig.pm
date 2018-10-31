@@ -8,7 +8,7 @@ use File::Basename;
 #perl install dir
 my $perl_install_dir = "/usr/local";
 
-
+my $bin = "$perl_install_dir/bin";
 
 my $root_dir = "/root/perl-devops";
 my $tmp_dir = "$root_dir/tmp";
@@ -197,28 +197,32 @@ sub install_k8s_task{
 	#0、stop all container
 	#stop($all_ip_str);
 	#1、config ssh login
-	#ssh_login($default_user,$default_pwd,$all_ip_str);
+	ssh_login($default_user,$default_pwd,$all_ip_str);
 
 	#2、all node config hostname
-	#update_host_config(\%cluster_ip_host_hash,$master_prefix,$node_prefix);
+	update_host_config(\%cluster_ip_host_hash,$master_prefix,$node_prefix);
 	
 	#2.1、config hostname login
-	#ssh_login($default_user,$default_pwd,$all_host_str);
+	ssh_login($default_user,$default_pwd,$all_host_str);
 	
 	#3、all node update os config
-	#update_sys_config($all_ip_str);
+	update_sys_config($all_ip_str);
 	
 	#4、all node install docker v17.03
 	#install_docker($all_ip_str);
 	#4、pull images
 	#pull_master_images($master_ip_str);
+	# my $id = $self->app->minion->enqueue(pull_master_images => [$master_ip_str] );
+	# say "队列任务===========>$id";
+	# my $worker = $self->app->minion->worker;
+	# $worker->run;
 	#5、all node install kubernetes
-	download_kubernetes($all_ip_str,$master_ip_str,$kubeConfig,0);
-	install_kubernetes($all_ip_str,$master_ip_str,\@master_ip_array,\%master_ip_host_hash,$kubeConfig);
+	#download_kubernetes($all_ip_str,$master_ip_str,$kubeConfig,0);
+	#install_kubernetes($all_ip_str,$master_ip_str,\@master_ip_array,\%master_ip_host_hash,$kubeConfig);
 	#6、master node install component
 	my $kube_api_ip = $kubeConfig->{"kube_api_ip"}; 
 	my $k8s_dir = $kubeConfig->{"kube_dir"}; 
-	#install_component(\%master_ip_host_hash,$k8s_dir,$etcd_default_port,$haproxy_default_port,$kube_api_ip);
+	install_component(\%master_ip_host_hash,$k8s_dir,$etcd_default_port,$haproxy_default_port,$kube_api_ip);
 	#7、config k8s cluster enable service
 	#config_enable_start($master_ip_str,$all_ip_str);
 	$log->info("finish install k8s cluster");
@@ -284,7 +288,10 @@ sub ssh_login{
 			[ qr#Enter passphrase#i,
 			  sub{ my $self = shift; $self->send("\r"); exp_continue;}
 			],
-			[ qr#yes/no#i,
+			[ qr#Enter same passphrase again#i,
+			  sub{ my $self = shift; $self->send("\r"); exp_continue;}
+			],
+			[ qr#want to continue connecting#i,
 			  sub{ my $self = shift; $self->send("yes\r"); exp_continue;}
 			],
 			[ qr/Password:/i,
@@ -357,7 +364,7 @@ sub update_sys_config{
 	#Redhat
 	#invoke_sys_command("/bin/sed -i \"s/\/dev\/mapper\/rhel-swap/\#\/dev\/mapper\/rhel-swap/g\" /etc/fstab",$all_ip_str);
 	#Centos
-	invoke_sys_command('/bin/sed -i \"s/#*\/dev\/mapper\/centos-swap/#&/g\" /etc/fstab',$all_ip_str);
+	invoke_sys_command('/bin/sed -i \"s/^\/dev\/mapper\/centos-swap/#&/g\" /etc/fstab',$all_ip_str);
 	invoke_sys_command("mount -a",$all_ip_str);
 	#open forward, Docker v1.13
 	invoke_sys_command("iptables -P FORWARD ACCEPT",$all_ip_str);
@@ -426,19 +433,11 @@ sub download_kubernetes{
 		$log->info("-------------- start download cni-plugins-amd64-v0.7.1.tgz --------------");
 		invoke_local_command("curl -s https://github.com/containernetworking/plugins/releases/download/v0.7.1/cni-plugins-amd64-v0.7.1.tgz -o $tmp_dir/cni-plugins-amd64-v0.7.1.tgz");
 	}
-	unless (-e "$tmp_dir/cfssl" && $no_override) {
-		$log->info("-------------- start download cfssl --------------");
-		invoke_local_command("wget https://pkg.cfssl.org/R1.2/cfssl_linux-amd64 -O $tmp_dir/cfssl");
-	}
-	unless (-e "$tmp_dir/cfssljson" && $no_override) {
-		$log->info("-------------- start download cfssljson --------------");
-		invoke_local_command("wget https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64 -O $tmp_dir/cfssljson");
-	}
-	unless (-e "$tmp_dir/cfssl-certinfo" && $no_override) {
-		$log->info("-------------- start download cfssl-certinfo --------------");
-		invoke_local_command("wget https://pkg.cfssl.org/R1.2/cfssl-certinfo_linux-amd64 -O $tmp_dir/cfssl-certinfo");
-	}
-
+	invoke_local_command("rm -rf $bin/cfssl*");
+	invoke_local_command("curl -s -L -o $bin/cfssl https://pkg.cfssl.org/R1.2/cfssl_linux-amd64");
+	invoke_local_command("curl -s -L -o $bin/cfssljson https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64");
+	invoke_local_command("curl -s -L -o $bin/cfssl-certinfo https://pkg.cfssl.org/R1.2/cfssl-certinfo_linux-amd64");
+	invoke_local_command("chmod +x $bin/cfssl*");
 	#upload kubelet to all node & chmod +x /usr/local/bin/kubelet
 	upload_file_to_node("$tmp_dir/kubelet","/usr/local/bin/",0,$all_ip_str);
 	invoke_sys_command("chmod +x /usr/local/bin/kubelet",$all_ip_str);
@@ -451,10 +450,7 @@ sub download_kubernetes{
 	upload_file_to_node("$tmp_dir/cni-plugins-amd64-v0.7.1.tgz","/opt/cni/bin",1,$all_ip_str);
 	
 	#m1 node need intall cfssl,use for create CA and TLS
-	invoke_local_command("/bin/cp -rfn $tmp_dir/cfssl /usr/local/bin/");
-	invoke_local_command("/bin/cp -rfn $tmp_dir/cfssljson /usr/local/bin/");
-	invoke_local_command("/bin/cp -rfn $tmp_dir/cfssl-certinfo /usr/local/bin/");
-	invoke_local_command("chmod +x /usr/local/bin/cfssl*");
+	
 
 	$log->info("-------------- finish download k8s file --------------");
 }
@@ -466,7 +462,6 @@ sub install_kubernetes{
 	#clear old config
 	invoke_sys_command("rm -rf /etc/etcd/ssl/* /etc/kubernetes/*",$all_ip_str);
 
-	
 	#config etcd CA
 	my $etcd_ca_dir = $kubeConfig->{"etcd_ca_dir"}; 
 	invoke_local_command("mkdir -p $etcd_ca_dir");
@@ -623,6 +618,8 @@ sub install_component{
 	invoke_sys_command("mkdir -p /etc/etcd /etc/haproxy /etc/kubernetes/manifests /etc/kubernetes/encryption /etc/kubernetes/audit",$master_ip_str);
 	#check generate file /etc/etcd/config.yml、/etc/haproxy/haproxy.cfg
 	get_ip_route($master_ip_host_hash,$if_get_route);
+	print_hash($tmp_host_route_ip,"route-ip-host-2");
+	
 	generate_etcd_haproxy_config($master_ip_host_hash,$etcd_default_port,$haproxy_default_port);
 
 	#generate Static pod YAML & EncryptionConfig
@@ -637,14 +634,14 @@ sub install_component{
 	upload_file_to_node("$kubelet_dir/10-kubelet.conf","/etc/systemd/system/kubelet.service.d/",0,$master_ip_str);
 	upload_file_to_node("$kubelet_dir/kubelet.service","/lib/systemd/system/",0,$master_ip_str);
 	#
-	invoke_sys_command("/bin/cp -rfn /etc/kubernetes/admin.conf ~/",$master_ip_str);
+	invoke_sys_command("/bin/cp -fn /etc/kubernetes/admin.conf ~/",$master_ip_str);
 	invoke_sys_command("chown \$(id -u):\$(id -g) \$HOME/admin.conf",$master_ip_str);
 	invoke_sys_command("/bin/sed -i \"/KUBECONFIG/d\" \$HOME/.bash_profile",$master_ip_str);
 	invoke_sys_command('/bin/sed -i \"/PATH=/i KUBECONFIG=~/admin.conf\" ~/.bash_profile ',$master_ip_str);
 	invoke_sys_command("source ~/.bash_profile",$master_ip_str);
 	invoke_sys_command("export KUBECONFIG=\$HOME/admin.conf",$master_ip_str);
 	
-	#start kubelet
+	# #start kubelet
 	invoke_sys_command("systemctl start kubelet.service",$master_ip_str);
 
 	#$log->debug("......watch netstat -ntlp......");
@@ -654,10 +651,10 @@ sub install_component{
 sub get_ip_route{
 	my ($master_ip_host_hash,$if_get_route) = @_;
 	while (my ($ip, $host) = each %$master_ip_host_hash) {
-
 		my $ip_route = invoke_sys_command("ip route get 8.8.8.8",$ip);
 		$ip_route =~ m/:\s+(.*)/g;
-		my @router = split(/\s/,$1);
+		my $data = $1 // "";
+		my @router = split(/\s/,$data);
 		if($if_get_route){
 			$tmp_host_route_ip->{$master_ip_host_hash->{$ip}} = $router[6];
 		}else{
@@ -678,25 +675,26 @@ sub generate_etcd_haproxy_config{
 	my $etcd_cluster = join (",",map {
 		"$master_ip_host_hash->{$_}=https:\\\/\\\/$tmp_host_route_ip->{$master_ip_host_hash->{$_}}:$etcd_port"	
 	} @master_ip_array);
-
+	$log->debug("\$etcd_cluster ============> $etcd_cluster");
 	my $haproxy_backends = join ("\n",map {
 		"    server $master_ip_host_hash->{$_}-api $tmp_host_route_ip->{$master_ip_host_hash->{$_}}:$haproxy_port check"
 	} @master_ip_array);
-
+	$log->debug("\$haproxy_backends ============> $haproxy_backends");
 	while (my ($ip, $host) = each %$master_ip_host_hash) {
 	   my $public_ip = $tmp_host_route_ip -> {$host} // $ip;
 	   #edit etcd's config.yml
-	   invoke_local_command("/bin/cp -rfn $work_static_dir/config.yml /etc/etcd/config-$ip.xml");
-	   invoke_local_command("/bin/sed -i \"s/\\\${HOSTNAME}/$host/g\" /etc/etcd/config-$ip.xml");
-	   invoke_local_command("/bin/sed -i \"s/\\\${PUBLIC_IP}/$public_ip/g\" /etc/etcd/config-$ip.xml");
-	   invoke_local_command("/bin/sed -i \"s/\\\${ETCD_SERVERS}/$etcd_cluster/g\" /etc/etcd/config-$ip.xml");
+	   $log->debug("==============handler etcd=======================");
+	   invoke_local_command("/bin/cp -rfn $work_static_dir/conf/config.yml /etc/etcd/config-$ip.yml");
+	   invoke_local_command("/bin/sed -i \"s/\\\${HOSTNAME}/$host/g\" /etc/etcd/config-$ip.yml");
+	   invoke_local_command("/bin/sed -i \"s/\\\${PUBLIC_IP}/$public_ip/g\" /etc/etcd/config-$ip.yml");
+	   invoke_local_command("/bin/sed -i \"s/\\\${ETCD_SERVERS}/$etcd_cluster/g\" /etc/etcd/config-$ip.yml");
 	   #upload etcd's config.xml template file to all etcd nodes
-	   upload_file_to_node("/etc/etcd/config-$ip.xml","/etc/etcd/config.xml",0,$ip);
-	   invoke_local_command("rm -rf /etc/etcd/config-$ip.xml");
-
+	   upload_file_to_node("/etc/etcd/config-$ip.yml","/etc/etcd/config.yml",0,$ip);
+	   invoke_local_command("rm -rf /etc/etcd/config-$ip.yml");
+	   $log->debug("==============handler haproxy====================");
 	   #edit haproxy's haproxy.cfg
-	   invoke_local_command("/bin/cp -rfn $work_static_dir/haproxy.cfg /etc/haproxy/haproxy-$ip.cfg");
-	   invoke_local_command("/bin/sed -i \"s/\\\${API_SERVERS}/$haproxy_backends/g\" /etc/haproxy/haproxy-$ip.cfg");
+	   invoke_local_command("/bin/cp -fn $work_static_dir/conf/haproxy.cfg /etc/haproxy/haproxy-$ip.cfg");
+	   invoke_local_command("perl -pi -e 's#\\\${API_SERVERS}#$haproxy_backends#g' /etc/haproxy/haproxy-$ip.cfg");
 	   #upload haproxy's haproxy.cfg template file to all haproxy nodes
 	   upload_file_to_node("/etc/haproxy/haproxy-$ip.cfg","/etc/haproxy/haproxy.cfg",0,$ip);
 	   invoke_local_command("rm -rf /etc/haproxy/haproxy-$ip.cfg");
@@ -717,8 +715,9 @@ sub generate_manifests_config{
 	my $etcd_cluster = join (",",map {
 		"https:\\\/\\\/$tmp_host_route_ip->{$master_ip_host_hash->{$_}}:$etcd_port"	
 	} @master_ip_array);
-
+	$log->debug("\$etcd_cluster ==============> $etcd_cluster");
 	my $unicast_peers = join(",", values %$tmp_host_route_ip);
+	$log->debug("\$unicast_peers ==============> $unicast_peers");
 	my $encrypt_secret = invoke_local_command("openssl rand -hex 16");
 	my @manifests_file_list = qw(etcd.yml haproxy.yml kube-controller-manager.yml kube-scheduler.yml);
 	my $i = 1;
@@ -731,7 +730,7 @@ sub generate_manifests_config{
  			upload_file_to_node("$work_static_dir/manifests/$manifests_file","$manifests_dir/",0,$ip);
 	   }
 	   #edit & upload keepalived.yml
-	   invoke_local_command("/bin/cp -rfn $work_static_dir/manifests/keepalived.yml $tmp_dir/keepalived-$ip.yml");
+	   invoke_local_command("/bin/cp -fn $work_static_dir/manifests/keepalived.yml $tmp_dir/keepalived-$ip.yml");
 	   invoke_local_command("/bin/sed -i \"s/\\\${ADVERTISE_VIP}/$advertise_vip/g\" $tmp_dir/keepalived-$ip.yml");
 	   invoke_local_command("/bin/sed -i \"s/\\\${ADVERTISE_VIP_NIC}/$vip_nic/g\" $tmp_dir/keepalived-$ip.yml");
 	   invoke_local_command("/bin/sed -i \"s/\\\${UNICAST_PEERS}/$unicast_peers/g\" $tmp_dir/keepalived-$ip.yml");
@@ -740,14 +739,14 @@ sub generate_manifests_config{
 	   invoke_local_command("rm -rf $tmp_dir/keepalived-$ip.yml");
 
 	   #edit & upload kube-apiserver.yml
-	   invoke_local_command("/bin/cp -rfn $work_static_dir/manifests/kube-apiserver.yml $tmp_dir/kube-apiserver-$ip.yml");
+	   invoke_local_command("/bin/cp -fn $work_static_dir/manifests/kube-apiserver.yml $tmp_dir/kube-apiserver-$ip.yml");
 	   invoke_local_command("/bin/sed -i \"s/\\\${ADVERTISE_VIP}/$advertise_vip/g\" $tmp_dir/kube-apiserver-$ip.yml");
 	   invoke_local_command("/bin/sed -i \"s/\\\${ETCD_SERVERS}/$etcd_cluster/g\" $tmp_dir/kube-apiserver-$ip.yml");
 	   upload_file_to_node("$tmp_dir/kube-apiserver-$ip.yml","$manifests_dir/kube-apiserver.yml",0,$ip);
 	   invoke_local_command("rm -rf $tmp_dir/kube-apiserver-$ip.yml");
 
 	   #edit & upload config.yml
-	   invoke_local_command("/bin/cp -rfn $work_static_dir/encryption/config.yml $tmp_dir/config-$ip.yml");
+	   invoke_local_command("/bin/cp -fn $work_static_dir/encryption/config.yml $tmp_dir/config-$ip.yml");
 	   invoke_local_command("/bin/sed -i \"s/\\\${ENCRYPT_SECRET}/$encrypt_secret/g\" $tmp_dir/config-$ip.yml");
 	   upload_file_to_node("$tmp_dir/config-$ip.yml","$encryption_dir/config.yml",0,$ip);
 	   invoke_local_command("rm -rf $tmp_dir/config-$ip.yml");

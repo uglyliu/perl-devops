@@ -18,4 +18,4 @@ use Expect;
 use Compress::Raw::Zlib;
 
 
-use TermReadKey;
+#use TermReadKey;
