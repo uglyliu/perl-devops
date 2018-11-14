@@ -28,3 +28,4 @@ docker tag k8s.gcr.io/pause-amd64:3.1 k8s.gcr.io/pause:3.1
 #docker pull haproxy:1.7-alpine
 #docker pull docker.io/osixia/keepalived:1.4.5
 #docker pull quay.io/coreos/etcd:v3.3.8
+docker pull quay.io/calico/typha:v0.7.4

@@ -36,3 +36,4 @@ docker tag osixia/keepalived:1.4.5 docker.io/osixia/keepalived:1.4.5
 docker pull haproxy:1.7-alpine
 
 docker pull quay.io/coreos/etcd:v3.3.8
+docker pull quay.io/calico/typha:v0.7.4

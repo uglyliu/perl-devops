@@ -17,6 +17,14 @@ my $work_static_dir = "$root_dir/static";
 my $ca_dir = "$work_static_dir/ca";
 my $service_dir = "$work_static_dir/service";
 my $kubelet_dir = "$work_static_dir/kubelet";
+my $env_dir = "$work_static_dir/env";
+my $tls_dir = "$work_static_dir/tls";
+# addons root dir
+my $addons_dir = "$work_static_dir/addons";
+# core dns
+my $dns_root_dir = "$addons_dir/external-dns";
+my $core_dns_dir = "$dns_root_dir/coredns";
+my $external_dns_dir = "$dns_root_dir/external-dns";
 
 #k8s install log，the frontend will read log content by websocket
 my $log_file = "$tmp_dir/k8s-install.log";
@@ -156,15 +164,21 @@ sub install_k8s_task{
 
 	my $haproxy_default_port = $kubeConfig->{"haproxy_default_port"};
 
+	#
 	my %cluster_ip_host_hash = map { 
 		$_ -> {"ip"} , 
-		$_ -> {'type'} eq "master" ? $master_prefix.$_ -> {'id'} : $node_prefix.$_ -> {'id'}
+		$_ -> {'type'} eq "node" ? $node_prefix.$_ -> {'id'} : $master_prefix.$_ -> {'id'}
 	} @$cluster_node_array;
 
+	my @all_ip_array = keys %cluster_ip_host_hash;
+	my @all_host_array = values %cluster_ip_host_hash;
+
+	my $all_ip_str = array2str(\@all_ip_array);
+	my $all_host_str = array2str(\@all_host_array);
+
+	# filter masters and nodes
 	my @master_node_array = grep $_ -> {"type"} eq "master" , @$cluster_node_array;
-
 	my @node_array = grep $_ -> {"type"} eq "node" , @$cluster_node_array;
-
 	my %master_ip_host_hash =  map { 
 		$_ -> {"ip"} , 
 		$master_prefix.$_ -> {'id'}
@@ -174,12 +188,6 @@ sub install_k8s_task{
 		$_ -> {"ip"} , 
 		$node_prefix.$_ -> {'id'}
 	} @node_array;
-
-	my @all_ip_array = keys %cluster_ip_host_hash;
-	my @all_host_array = values %cluster_ip_host_hash;
-
-	my $all_ip_str = array2str(\@all_ip_array);
-	my $all_host_str = array2str(\@all_host_array);
 	
 	my @master_ip_array = keys %master_ip_host_hash;
 	my $master_ip_str = array2str(\@master_ip_array);
@@ -190,44 +198,97 @@ sub install_k8s_task{
 	my @node_ip_array = keys %node_ip_host_hash;
 	my $node_ip_str = array2str(\@node_ip_array);
 
+	# all cluster nodes
+	my @all_cluster_ip_array = (@master_ip_array, @node_ip_array);
+	my $all_cluster_ip_str = array2str(\@all_cluster_ip_array);
+
+	$log->debug("================Config Info=====================");
 	print_hash(\%cluster_ip_host_hash,"all cluster node");
 	print_hash(\%master_ip_host_hash,"all master node");
 	print_hash(\%node_ip_host_hash,"all node");
+	$log->debug("all_cluster_ip_str: $all_cluster_ip_str");
+	$log->debug("master_ip_str: $master_ip_str");
+	$log->debug("master_host_str: $master_host_str");
+	$log->debug("node_ip_str: $node_ip_str");
+	my $kube_api_ip = $kubeConfig->{"kube_api_ip"}; 
+	my $kube_api_port = $kubeConfig->{"kube_api_port"}; 
+	my $dns_ip = $kubeConfig->{"dnsIP"}; 
+	my $k8s_dir = $kubeConfig->{"kube_dir"}; 
+	my $cluster_ip = $kubeConfig->{"clusterIP"}; 
+	my $ingress_vip = $kubeConfig->{"ingressVIP"}; 
+	my $dns_dn = $kubeConfig->{"dnsDN"}; 
+	my $service_cluster_ip = $kubeConfig->{"serviceClusterIP"}; 
+	my $kube_api_server = "https://$kube_api_ip:$kube_api_port";
+	$log->debug("k8s_dir: $k8s_dir");
+	$log->debug("kube_api_ip: $kube_api_ip");
+	$log->debug("kube_api_port: $kube_api_port");
+	$log->debug("ingress_vip: $ingress_vip");
+	$log->debug("cluster_ip: $cluster_ip");
+	$log->debug("service_cluster_ip: $service_cluster_ip");
+	$log->debug("dns_dn: $dns_dn");
+	$log->debug("dns_ip: $dns_ip");
+	$log->debug("kube_api_server: $kube_api_server");
+	$log->debug("master_prefix: $master_prefix");
+	$log->debug("node_prefix: $node_prefix");
+	$log->debug("================Config Info=====================");
 
 	#0、stop all container
-	#stop($all_ip_str);
+	#stop($all_cluster_ip_str);
 	#1、config ssh login
-	ssh_login($default_user,$default_pwd,$all_ip_str);
+	#ssh_login($default_user,$default_pwd,$all_ip_str);
 
 	#2、all node config hostname
-	update_host_config(\%cluster_ip_host_hash,$master_prefix,$node_prefix);
+	#update_host_config(\%cluster_ip_host_hash,$master_prefix,$node_prefix);
 	
 	#2.1、config hostname login
-	ssh_login($default_user,$default_pwd,$all_host_str);
+	#ssh_login($default_user,$default_pwd,$all_host_str);
 	
 	#3、all node update os config
-	update_sys_config($all_ip_str);
+	#update_sys_config($all_cluster_ip_str);
 	
 	#4、all node install docker v17.03
-	#install_docker($all_ip_str);
+	#install_docker($all_cluster_ip_str);
 	#4、pull images
-	#pull_master_images($master_ip_str);
+	pull_master_images($master_ip_str);
+	pull_node_images($node_ip_str);
 	# my $id = $self->app->minion->enqueue(pull_master_images => [$master_ip_str] );
 	# say "队列任务===========>$id";
 	# my $worker = $self->app->minion->worker;
 	# $worker->run;
 	#5、all node install kubernetes
-	#download_kubernetes($all_ip_str,$master_ip_str,$kubeConfig,0);
-	#install_kubernetes($all_ip_str,$master_ip_str,\@master_ip_array,\%master_ip_host_hash,$kubeConfig);
+	#download_kubernetes($all_cluster_ip_str,$master_ip_str,$kubeConfig,0);
+	#install_kubernetes($all_cluster_ip_str,$master_ip_str,\@master_ip_array,\%master_ip_host_hash,$kubeConfig);
+	
+	
 	#6、master node install component
-	my $kube_api_ip = $kubeConfig->{"kube_api_ip"}; 
-	my $k8s_dir = $kubeConfig->{"kube_dir"}; 
-	install_component(\%master_ip_host_hash,$k8s_dir,$etcd_default_port,$haproxy_default_port,$kube_api_ip);
-	#7、config k8s cluster enable service
-	#config_enable_start($master_ip_str,$all_ip_str);
+	#install_component(\%master_ip_host_hash,$k8s_dir,$etcd_default_port,$haproxy_default_port,$kube_api_ip);
+	#6.1
+	#export_admin_config($master_ip_str);
+	#7、create TLS bootstrapping
+	#my $token_id = create_tls_bootstrapping($kube_api_server);
+	#8、install nodes
+	#install_node($node_ip_str);
+	#9、install nodes
+	#install_kube_proxy($kube_api_server);
+	#10、install nodes
+	#install_core_dns($dns_ip);
+	#11、install nodes
+	#start_k8s_cluster($master_ip_str,$node_ip_str,$token_id);
+
+	#12、config k8s cluster enable service
+	#config_enable_start($master_ip_str,$node_ip_str,$all_ip_str);
 	$log->info("finish install k8s cluster");
 }
 
+sub export_admin_config{
+	my $master_ip_str = shift;
+	invoke_sys_command("/bin/cp -fn /etc/kubernetes/admin.conf ~/",$master_ip_str);
+	invoke_sys_command("chown \$(id -u):\$(id -g) \$HOME/admin.conf",$master_ip_str);
+	invoke_sys_command("/bin/sed -i \"/KUBECONFIG/d\" \$HOME/.bash_profile",$master_ip_str);
+	invoke_sys_command('/bin/sed -i \"/PATH=/i KUBECONFIG=~/admin.conf\" ~/.bash_profile ',$master_ip_str);
+	invoke_sys_command("source ~/.bash_profile",$master_ip_str);
+	invoke_sys_command("export KUBECONFIG=\$HOME/admin.conf",$master_ip_str);
+}
 sub stop{
 	my $all_ip_str = shift;
 	invoke_sys_command("systemctl stop kubelet.service",$all_ip_str);
@@ -319,12 +380,12 @@ sub update_host_config{
 
 	my $all_ip_list = [keys %$ip_hostname_hash];
 
-	while (my ($ip, $hostname) = each %$ip_hostname_hash) {
-		#1、clear config file：/etc/hosts and /etc/sysconfig/network
-		invoke_sys_command("/bin/sed -i \"/k8s/d\" /etc/hosts;/bin/sed -i \"/k8s/d\" /etc/hosts;/bin/sed -i \"/HOSTNAME=/d\" /etc/sysconfig/network;",$ip);
-		#2、update hostname 
-		invoke_sys_command("/bin/echo \"HOSTNAME=$hostname\" >> /etc/sysconfig/network;/bin/hostname $hostname",$ip);
-	}
+	# while (my ($ip, $hostname) = each %$ip_hostname_hash) {
+	# 	#1、clear config file：/etc/hosts and /etc/sysconfig/network
+	# 	invoke_sys_command("/bin/sed -i \"/k8s|$master_prefix/d\" /etc/hosts;/bin/sed -i \"/k8s|$node_prefix/d\" /etc/hosts;/bin/sed -i \"/HOSTNAME=/d\" /etc/sysconfig/network;",$ip);
+	# 	#2、update hostname 
+	# 	invoke_sys_command("/bin/echo \"HOSTNAME=$hostname\" >> /etc/sysconfig/network;/bin/hostname $hostname",$ip);
+	# }
 	foreach my $item (@$all_ip_list) {
 		#3、update ip-hostname
 		$log->info("...start config《 $item 》hosts...");
@@ -633,19 +694,72 @@ sub install_component{
 	upload_file_to_node("$kubelet_dir/config.yml","/var/lib/kubelet/",0,$master_ip_str);
 	upload_file_to_node("$kubelet_dir/10-kubelet.conf","/etc/systemd/system/kubelet.service.d/",0,$master_ip_str);
 	upload_file_to_node("$kubelet_dir/kubelet.service","/lib/systemd/system/",0,$master_ip_str);
-	#
-	invoke_sys_command("/bin/cp -fn /etc/kubernetes/admin.conf ~/",$master_ip_str);
-	invoke_sys_command("chown \$(id -u):\$(id -g) \$HOME/admin.conf",$master_ip_str);
-	invoke_sys_command("/bin/sed -i \"/KUBECONFIG/d\" \$HOME/.bash_profile",$master_ip_str);
-	invoke_sys_command('/bin/sed -i \"/PATH=/i KUBECONFIG=~/admin.conf\" ~/.bash_profile ',$master_ip_str);
-	invoke_sys_command("source ~/.bash_profile",$master_ip_str);
-	invoke_sys_command("export KUBECONFIG=\$HOME/admin.conf",$master_ip_str);
 	
 	# #start kubelet
-	invoke_sys_command("systemctl start kubelet.service",$master_ip_str);
 
 	#$log->debug("......watch netstat -ntlp......");
 	#invoke_local_command("watch netstat -ntlp");
+}
+
+# install calico
+sub install_calico{
+	my $cluster_ip_cidr = shift;
+	my $CALICO_IPV4POOL_CIDR = "192.168.0.0\\\/16";
+	my $calico_dir = "$work_static_dir/cni/calico/v3.1";
+	$cluster_ip_cidr =~ s#/#\\\/#g;
+  	invoke_local_command("rm -rf $calico_dir/calico.yml");
+  	invoke_local_command("/bin/cp -fn $calico_dir/calico_template.yml $calico_dir/calico.yml");
+ 	invoke_local_command("/bin/sed -i \"s/$CALICO_IPV4POOL_CIDR/$cluster_ip_cidr/g\" $calico_dir/calico.yml");
+
+    # check if start
+    # kubectl -n kube-system get po -l k8s-app=calico-node
+    # kubectl exec -ti -n kube-system calicoctl -- calicoctl get profiles -o wide
+    # kubectl exec -ti -n kube-system calicoctl -- calicoctl get node -o wide
+}
+
+sub filter_file {
+    my ($qr,$dir) = @_;
+    opendir(DES_DIR, $dir);
+    my @file_list = readdir(DES_DIR);
+    my $result = 0;
+    foreach my $file (@file_list){
+		if ($file =~ /$qr/) {
+			$result = $1;
+			last;
+	    }
+	}
+	closedir(DES_DIR);
+    return $result;
+}
+
+sub create_tls_bootstrapping{
+	# https://kubernetes.io/docs/concepts/cluster-administration/certificates/
+	my $kube_api_server = shift;
+	
+	my $qr = qr(bootstrap-token-(.*).yml);
+	my $last_token_id = filter_file($qr,$tls_dir);
+	if($last_token_id){
+		$log->debug("have exist token_id: $last_token_id");
+		return $last_token_id;
+	}
+
+	my $token_id = invoke_local_command("openssl rand 3 -hex");
+	my $token_secret = invoke_local_command("openssl rand 8 -hex");
+	my $bootstrap_token = $token_id.$token_secret;
+
+	invoke_local_command("kubectl config set-cluster kubernetes --certificate-authority=/etc/kubernetes/pki/ca.pem --embed-certs=true --server=$kube_api_server --kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf");
+	invoke_local_command("kubectl config set-credentials tls-bootstrap-token-user --token=$bootstrap_token --kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf");
+	invoke_local_command("kubectl config set-context tls-bootstrap-token-user\@kubernetes --cluster=kubernetes --user=tls-bootstrap-token-user --kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf");
+	invoke_local_command("kubectl config use-context tls-bootstrap-token-user\@kubernetes --kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf");
+
+	invoke_local_command("rm -rf $tls_dir/bootstrap-token-*.yml");
+	# generate TLS Bootstrap Secret, use for auto sign
+	invoke_local_command("/bin/cp -fn $tls_dir/bootstrap-token.template $tls_dir/bootstrap-token-$token_id.yml");
+	invoke_local_command("/bin/sed -i s/\\\${TOKEN_ID}/$token_id/g $tls_dir/bootstrap-token-$token_id.yml");
+	invoke_local_command("/bin/sed -i s/\\\${TOKEN_SECRET}/$token_secret/g $tls_dir/bootstrap-token-$token_id.yml");
+	
+	$log->debug("current token_id: $token_id");
+	return $token_id;
 }
 
 sub get_ip_route{
@@ -762,12 +876,16 @@ sub generate_manifests_config{
 }
 
 sub config_enable_start{
-	my ($master_ip_str,$all_ip_str) = @_;
+	my ($master_ip_str,$node_ip_str,$all_ip_str) = @_;
 	$log->info("config enable service autostart ----->  etcd & kubelet");
+	#disable
 	invoke_sys_command("systemctl disabel etcd",$master_ip_str);	
 	invoke_sys_command("systemctl disabel kubelet.service",$master_ip_str);
+	invoke_sys_command("systemctl disabel kubelet.service",$node_ip_str);
+	#enable
 	invoke_sys_command("systemctl enable etcd",$master_ip_str);	
 	invoke_sys_command("systemctl enable kubelet.service",$master_ip_str);
+	invoke_sys_command("systemctl enable kubelet.service",$node_ip_str);
 }
 
 #check if the $file_dir/$file_list file exists
@@ -857,6 +975,7 @@ sub pull_master_images{
 		"etcd:v3.3.8"	=>	"quay.io/coreos/",
 		"keepalived:1.4.5"	=>	"osixia/",
 		"flannel:v0.10.0-amd64"	=>	"quay.io/coreos/",
+		"typha:v0.7.4" => "quay.io/calico/",
 		"haproxy:1.7-alpine"	=>	""
 	);
 	my $not_exist_images_ip = check_docker_images(\%master_images_hash,$master_ip_str);
@@ -889,6 +1008,7 @@ sub pull_node_images{
 		"heapster-influxdb-amd64:v1.3.3"	=>	"k8s.gcr.io/",
 		"heapster-grafana-amd64:v4.4.3"	=>	"k8s.gcr.io/",
 		"heapster-amd64:v1.4.2"	=>	"k8s.gcr.io/",
+		"typha:v0.7.4" => "quay.io/calico/",
 		"flannel:v0.10.0-amd64"	=>	"quay.io/coreos/",
 	);
 	my $not_exist_images_ip = check_docker_images(\%node_images_hash,$node_ip_str);
@@ -963,6 +1083,146 @@ sub parse_docker_images{
 		$ip_image_name{"$i_source:$i_name"}=$current_line[4];
 	}
 	return \%ip_image_name;
+}
+
+sub install_node{
+	my $node_ip_str = shift;
+	# clear
+	invoke_sys_command("systemctl disabel kubelet.service",$node_ip_str);	
+	invoke_sys_command("rm -rf /etc/kubernetes/pki /var/lib/kubelet /var/log/kubernetes /var/lib/etcd /etc/systemd/system/kubelet.service.d /etc/kubernetes/manifests",$node_ip_str); 
+	# init node dir
+	invoke_sys_command("mkdir -p /etc/kubernetes/pki /var/lib/kubelet /var/log/kubernetes /var/lib/etcd /etc/systemd/system/kubelet.service.d /etc/kubernetes/manifests",$node_ip_str);
+	# config node
+	upload_file_to_node("/etc/kubernetes/pki/ca.pem","/etc/kubernetes/pki/",0,$node_ip_str);
+	upload_file_to_node("/etc/kubernetes/pki/ca-key.pem","/etc/kubernetes/pki/",0,$node_ip_str);
+	upload_file_to_node("/etc/kubernetes/bootstrap-kubelet.conf","/etc/kubernetes/",0,$node_ip_str);
+	# scp node config files
+	my $node_resource_dir = "$work_static_dir/node";
+	upload_file_to_node("$work_static_dir/node/var/lib/kubelet/config.yml","/var/lib/kubelet/config.yml",0,$node_ip_str);
+	upload_file_to_node("$work_static_dir/node/systemd/kubelet.service","/lib/systemd/system/kubelet.service",0,$node_ip_str);
+	upload_file_to_node("$work_static_dir/node/systemd/10-kubelet.conf","/etc/systemd/system/kubelet.service.d/10-kubelet.conf",0,$node_ip_str);
+	
+	$log->debug("........finish install all nodes........");	
+}
+
+sub install_kube_proxy{
+	my $kube_api_server = shift;
+	my $kube_proxy_dir = "$addons_dir/kube-proxy";
+
+	$kube_api_server =~ s#/#\\\/#g;
+	# clear 
+	invoke_local_command("rm -rf $kube_proxy_dir/kube-proxy-cm.yml");
+	# install 
+	invoke_local_command("/bin/cp -fn $kube_proxy_dir/kube-proxy-cm.template $kube_proxy_dir/kube-proxy-cm.yml");
+	invoke_local_command("/bin/sed -i \"s/\\\${KUBE_APISERVER}/$kube_api_server/g\" $kube_proxy_dir/kube-proxy-cm.yml");
+	# start kube-proxy
+	# check
+	# kubectl -n kube-system get po -l k8s-app=kube-proxy
+	# kubectl -n kube-system logs -f kube-proxy-fwgx8
+	# ipvsadm -ln
+}
+
+sub start_tls_bootstrapping{
+	my $token_id = shift;
+	invoke_local_command("kubectl create -f $tls_dir/bootstrap-token-$token_id.yml");
+
+	# create TLS Bootstrap Autoapprove RBAC
+	invoke_local_command("kubectl apply -f $work_static_dir/master/resources/kubelet-bootstrap-rbac.yml");
+
+	# create RBAC Role 
+	invoke_local_command("kubectl apply -f $work_static_dir/master/resources/apiserver-to-kubelet-rbac.yml");
+	# set  Taints and Tolerations 
+	# https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+	invoke_local_command("kubectl taint nodes node-role.kubernetes.io/master=\"\":NoSchedule --all");
+}
+
+sub install_core_dns{
+	my $dns_ip = shift;
+	my $code_dns_dir = "$work_static_dir/addons/coredns";
+	invoke_local_command("rm -rf $code_dns_dir/coredns-svc.yml");
+	invoke_local_command("/bin/cp -fn $code_dns_dir/coredns-svc.template $code_dns_dir/coredns-svc.yml");
+	invoke_local_command("/bin/sed -i \"s/\\\${clusterIP}/$dns_ip/g\" $code_dns_dir/coredns-svc.yml");
+	$log->debug("......finish install_core_dns......");
+	#check
+}
+
+sub install_ingress{
+	my $ingress_vip = shift;
+	my $ingress_dir = "$addons_dir/ingress-controller";
+	invoke_local_command("rm -rf $ingress_dir/ingress-controller-svc.yml");
+	# init 
+	invoke_local_command("/bin/cp -fn $ingress_dir/ingress-controller-svc.template $ingress_dir/ingress-controller-svc.yml");
+	invoke_local_command("/bin/sed -i \"s/\\\${INGRESS_VIP}/$ingress_vip/g\" $ingress_dir/ingress-controller-svc.yml");
+	# set namespace
+	invoke_local_command("kubectl create ns ingress-nginx");
+	# start ingress controller
+	invoke_local_command("kubectl apply -f $ingress_dir");
+	# check
+	invoke_local_command("kubectl apply -f $work_static_dir/apps/nginx/");
+	# curl 172.22.132.8 -H 'Host: nginx.k8s.local'
+	# curl 172.22.132.8 -H 'Host: nginx1.k8s.local'
+}
+
+sub install_external_dns{
+	my $dns_vip = shift;
+
+	invoke_local_command("rm -rf $core_dns_dir/coredns-svc-tcp.yml $core_dns_dir/coredns-svc-udp.yml");
+	invoke_local_command("/bin/cp -fn $core_dns_dir/coredns-svc-tcp.template $core_dns_dir/coredns-svc-tcp.yml");
+	invoke_local_command("/bin/cp -fn $core_dns_dir/coredns-svc-udp.template $core_dns_dir/coredns-svc-udp.yml");
+	# config
+	invoke_local_command("/bin/sed -i \"s/\\\${DNS_VIP}/$dns_vip/g\" $core_dns_dir/coredns-svc-tcp.yml");
+	invoke_local_command("/bin/sed -i \“s/\\\${DNS_VIP}/$dns_vip/g\" $core_dns_dir/coredns-svc-udp.yml");
+	# start
+	invoke_local_command("kubectl create -f $core_dns_dir");
+	# check 
+	# kubectl -n external-dns get po,svc
+	
+	# deploy external_dns,use for sync resource with CoreDNS
+	invoke_local_command("kubectl apply -f $external_dns_dir");
+	# check 
+	# kubectl -n external-dns get po -l k8s-app=external-dns
+	# check ingress'nginx server
+}
+
+sub install_dashboard{
+	my $vip = shift;
+	invoke_local_command("kubectl apply -f $addons_dir/dashboard/");
+	# check
+	# kubectl -n kube-system get po,svc -l k8s-app=kubernetes-dashboard
+	invoke_local_command("kubectl -n kube-system create sa dashboard");
+	invoke_local_command("kubectl create clusterrolebinding dashboard --clusterrole cluster-admin --serviceaccount=kube-system:dashboard");
+	my $secret = invoke_local_command("kubectl -n kube-system get sa dashboard -o yaml | awk '/dashboard-token/ {print $3}'");
+	$log->debug("==========install_dashboard==========secret=======");
+	invoke_local_command("kubectl -n kube-system describe secrets $secret | awk '/token:/{print $2}'");
+	$log->debug("========install_dashboard======> https://$vip:6443/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/");
+}
+
+sub start_k8s_cluster{
+	my ($master_ip_str,$node_ip_str,$token_id) = @_;
+	
+	# start all master
+	$log->info(".... start k8s cluster [master]....");
+	
+	#invoke_sys_command("systemctl start kubelet.service",$master_ip_str);
+	#start_tls_bootstrapping($token_id);
+
+	# start all nodes
+	# $log->info(".... start k8s cluster [node] ....");
+	# invoke_sys_command("systemctl start kubelet.service",$node_ip_str);
+
+	# # start kube-proxy
+	# $log->info(".... start k8s cluster [kube-proxy] ....");
+	# invoke_local_command("kubectl create -f $work_static_dir/addons/kube-proxy/");
+
+	# # start core-dns
+	# $log->info(".... start k8s cluster [code-dns] ....");
+	# invoke_local_command("kubectl create -f $work_static_dir/addons/coredns/");
+	
+	# # start calico
+	$log->info(".... start k8s cluster [calico] ....");
+	invoke_local_command("kubectl create -f $work_static_dir/cni/calico/v3.1/");
+
+	
 }
 
 1;
