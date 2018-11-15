@@ -32,9 +32,11 @@ my $log_file = "$tmp_dir/k8s-install.log";
 #shoud be config by config file
 my $default_user = "root";
 my $default_pwd = "root";
-my $vip_nic_prefix = "vip_nic";
 my $pki_dir = "$work_static_dir/pki";
+# host -> ip/route_ip
 my $tmp_host_route_ip = {};
+# host -> keepalived-nic
+my $tmp_ip_nic = {};
 my $log = Mojo::Log->new(path => "$log_file");
 my $default_docker_hub = "limengyu1990";
 my $default_retry_time_flag = 0;
@@ -248,13 +250,15 @@ sub install_k8s_task{
 	
 	#4、all node install docker v17.03
 	#install_docker($all_cluster_ip_str);
+	
 	#4、pull images
-	pull_master_images($master_ip_str);
-	pull_node_images($node_ip_str);
+	#pull_master_images($master_ip_str);
+	#pull_node_images($node_ip_str);
 	# my $id = $self->app->minion->enqueue(pull_master_images => [$master_ip_str] );
 	# say "队列任务===========>$id";
 	# my $worker = $self->app->minion->worker;
 	# $worker->run;
+	
 	#5、all node install kubernetes
 	#download_kubernetes($all_cluster_ip_str,$master_ip_str,$kubeConfig,0);
 	#install_kubernetes($all_cluster_ip_str,$master_ip_str,\@master_ip_array,\%master_ip_host_hash,$kubeConfig);
@@ -262,10 +266,11 @@ sub install_k8s_task{
 	
 	#6、master node install component
 	#install_component(\%master_ip_host_hash,$k8s_dir,$etcd_default_port,$haproxy_default_port,$kube_api_ip);
+	
 	#6.1
 	#export_admin_config($master_ip_str);
 	#7、create TLS bootstrapping
-	#my $token_id = create_tls_bootstrapping($kube_api_server);
+	my $token_id = create_tls_bootstrapping($kube_api_server);
 	#8、install nodes
 	#install_node($node_ip_str);
 	#9、install nodes
@@ -273,7 +278,8 @@ sub install_k8s_task{
 	#10、install nodes
 	#install_core_dns($dns_ip);
 	#11、install nodes
-	#start_k8s_cluster($master_ip_str,$node_ip_str,$token_id);
+	#install_calico($cluster_ip);
+	start_k8s_cluster($master_ip_str,$node_ip_str,$token_id);
 
 	#12、config k8s cluster enable service
 	#config_enable_start($master_ip_str,$node_ip_str,$all_ip_str);
@@ -380,12 +386,14 @@ sub update_host_config{
 
 	my $all_ip_list = [keys %$ip_hostname_hash];
 
-	# while (my ($ip, $hostname) = each %$ip_hostname_hash) {
+	while (my ($ip, $hostname) = each %$ip_hostname_hash) {
 	# 	#1、clear config file：/etc/hosts and /etc/sysconfig/network
-	# 	invoke_sys_command("/bin/sed -i \"/k8s|$master_prefix/d\" /etc/hosts;/bin/sed -i \"/k8s|$node_prefix/d\" /etc/hosts;/bin/sed -i \"/HOSTNAME=/d\" /etc/sysconfig/network;",$ip);
+		invoke_sys_command("/bin/sed -i \"/(k8s|$master_prefix|$node_prefix)/d\" /etc/hosts;",$ip);
+		invoke_sys_command("/bin/sed -i \"/k8s/d\" /etc/hosts;",$ip);
+		# invoke_sys_command("/bin/sed -i \"/HOSTNAME=/d\" /etc/sysconfig/network;",$ip);
 	# 	#2、update hostname 
 	# 	invoke_sys_command("/bin/echo \"HOSTNAME=$hostname\" >> /etc/sysconfig/network;/bin/hostname $hostname",$ip);
-	# }
+	}
 	foreach my $item (@$all_ip_list) {
 		#3、update ip-hostname
 		$log->info("...start config《 $item 》hosts...");
@@ -679,7 +687,8 @@ sub install_component{
 	invoke_sys_command("mkdir -p /etc/etcd /etc/haproxy /etc/kubernetes/manifests /etc/kubernetes/encryption /etc/kubernetes/audit",$master_ip_str);
 	#check generate file /etc/etcd/config.yml、/etc/haproxy/haproxy.cfg
 	get_ip_route($master_ip_host_hash,$if_get_route);
-	print_hash($tmp_host_route_ip,"route-ip-host-2");
+	print_hash($tmp_host_route_ip,"route-host-ip");
+	print_hash($tmp_ip_nic,"route-ip-nic");
 	
 	generate_etcd_haproxy_config($master_ip_host_hash,$etcd_default_port,$haproxy_default_port);
 
@@ -774,7 +783,7 @@ sub get_ip_route{
 		}else{
 			$tmp_host_route_ip->{$master_ip_host_hash->{$ip}} = $ip;
 		}
-		$tmp_host_route_ip->{"$vip_nic_prefix-$ip"} = $router[4];
+		$tmp_ip_nic->{"$ip"} = $router[4];
 	}	
 }
 
@@ -838,7 +847,7 @@ sub generate_manifests_config{
 	my $priority = 100;
 	while (my ($ip, $host) = each %$master_ip_host_hash) {
 
-  	   my $vip_nic = $tmp_host_route_ip->{"$vip_nic_prefix-$ip"};
+  	   my $vip_nic = $tmp_ip_nic->{"$ip"};
 
 	   foreach my $manifests_file (@manifests_file_list){
  			upload_file_to_node("$work_static_dir/manifests/$manifests_file","$manifests_dir/",0,$ip);
@@ -1201,26 +1210,26 @@ sub start_k8s_cluster{
 	my ($master_ip_str,$node_ip_str,$token_id) = @_;
 	
 	# start all master
-	$log->info(".... start k8s cluster [master]....");
+	#$log->info(".... start k8s cluster [master]....");
 	
-	#invoke_sys_command("systemctl start kubelet.service",$master_ip_str);
+	invoke_sys_command("systemctl start kubelet.service",$master_ip_str);
 	#start_tls_bootstrapping($token_id);
 
 	# start all nodes
-	# $log->info(".... start k8s cluster [node] ....");
-	# invoke_sys_command("systemctl start kubelet.service",$node_ip_str);
+	#$log->info(".... start k8s cluster [node] ....");
+	invoke_sys_command("systemctl start kubelet.service",$node_ip_str);
 
 	# # start kube-proxy
 	# $log->info(".... start k8s cluster [kube-proxy] ....");
-	# invoke_local_command("kubectl create -f $work_static_dir/addons/kube-proxy/");
+	#invoke_local_command("kubectl create -f $work_static_dir/addons/kube-proxy/");
 
 	# # start core-dns
 	# $log->info(".... start k8s cluster [code-dns] ....");
 	# invoke_local_command("kubectl create -f $work_static_dir/addons/coredns/");
 	
 	# # start calico
-	$log->info(".... start k8s cluster [calico] ....");
-	invoke_local_command("kubectl create -f $work_static_dir/cni/calico/v3.1/");
+	#$log->info(".... start k8s cluster [calico] ....");
+	#invoke_local_command("kubectl create -f $work_static_dir/cni/calico/v3.1/");
 
 	
 }

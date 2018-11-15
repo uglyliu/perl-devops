@@ -1,3 +1,4 @@
 {
- "storage-driver": "devicemapper"
+  "storage-driver": "devicemapper",
+  "disable-legacy-registry": false
 }

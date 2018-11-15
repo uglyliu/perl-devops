@@ -25,10 +25,10 @@ docker rmi registry.cn-shenzhen.aliyuncs.com/duyj/flannel:v0.10.0-amd64
 
 docker tag k8s.gcr.io/pause-amd64:3.1 k8s.gcr.io/pause:3.1
 
-docker pull registry.cn-qingdao.aliyuncs.com/wod/keepalived
-docker tag registry.cn-qingdao.aliyuncs.com/wod/keepalived osixia/keepalived:1.4.5
-docker tag registry.cn-qingdao.aliyuncs.com/wod/keepalived docker.io/osixia/keepalived:1.4.5
-docker rmi registry.cn-qingdao.aliyuncs.com/wod/keepalived
+docker pull registry.cn-qingdao.aliyuncs.com/wod/keepalived:1.4.5
+docker tag registry.cn-qingdao.aliyuncs.com/wod/keepalived:1.4.5 osixia/keepalived:1.4.5
+docker tag registry.cn-qingdao.aliyuncs.com/wod/keepalived:1.4.5 docker.io/osixia/keepalived:1.4.5
+docker rmi registry.cn-qingdao.aliyuncs.com/wod/keepalived:1.4.5
 
 docker pull docker.io/osixia/keepalived:1.4.5
 docker tag osixia/keepalived:1.4.5 docker.io/osixia/keepalived:1.4.5
