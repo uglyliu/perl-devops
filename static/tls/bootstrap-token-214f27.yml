@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: bootstrap-token-423310
+  name: bootstrap-token-214f27
   namespace: kube-system
 type: bootstrap.kubernetes.io/token
 stringData:
-  token-id: "423310"
-  token-secret: "a3fe53dc04680702"
+  token-id: "214f27"
+  token-secret: "1d85310e158fd3ae"
   usage-bootstrap-authentication: "true"
   usage-bootstrap-signing: "true"
   auth-extra-groups: system:bootstrappers:default-node-token

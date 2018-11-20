@@ -225,10 +225,10 @@ sub install_k8s_task{
 	$log->debug("kube_api_ip: $kube_api_ip");
 	$log->debug("kube_api_port: $kube_api_port");
 	$log->debug("ingress_vip: $ingress_vip");
-	$log->debug("cluster_ip: $cluster_ip");
-	$log->debug("service_cluster_ip: $service_cluster_ip");
-	$log->debug("dns_dn: $dns_dn");
-	$log->debug("dns_ip: $dns_ip");
+	$log->debug("Cluster IP CIDR: $cluster_ip");
+	$log->debug("Service Cluster IP CIDR: $service_cluster_ip");
+	$log->debug("DNS DN: $dns_dn");
+	$log->debug("Service DNS IP: $dns_ip");
 	$log->debug("kube_api_server: $kube_api_server");
 	$log->debug("master_prefix: $master_prefix");
 	$log->debug("node_prefix: $node_prefix");
@@ -265,7 +265,7 @@ sub install_k8s_task{
 	
 	
 	#6、master node install component
-	#install_component(\%master_ip_host_hash,$k8s_dir,$etcd_default_port,$haproxy_default_port,$kube_api_ip);
+	#install_component(\%master_ip_host_hash,$k8s_dir,$etcd_default_port,$haproxy_default_port,$kube_api_ip,$service_cluster_ip);
 	
 	#6.1
 	#export_admin_config($master_ip_str);
@@ -524,6 +524,14 @@ sub download_kubernetes{
 	$log->info("-------------- finish download k8s file --------------");
 }
 
+
+sub build_cluster_endpoint{
+	my $service_cluster_ip = shift;
+	$service_cluster_ip =~ m/((\d+\.){3})/g;
+	my $result = $1."1";
+	$log->debug("build_cluster_endpoint: $result");
+	return $result;
+}
 sub install_kubernetes{
 	my ($all_ip_str,$master_ip_str,$master_ip_array,$master_ip_host_hash,$kubeConfig) = @_;
 	$log->info("--------------start config k8s CA --------------");
@@ -547,6 +555,7 @@ sub install_kubernetes{
 	#config kubernetes CA
 	my $k8s_dir = $kubeConfig->{"kube_dir"}; 
 	my $cluster_ip = $kubeConfig->{"clusterIP"}; 
+	my $service_cluster_ip = $kubeConfig->{"serviceClusterIP"}; 
 	my $kube_api_ip = $kubeConfig->{"kube_api_ip"}; 
 	my $kube_api_port = $kubeConfig->{"kube_api_port"} // "6443";
 	my $master_host_name = $kubeConfig->{"masterHostName"};
@@ -560,7 +569,8 @@ sub install_kubernetes{
 	##create TLS for Kubernetes API Server
 	##kubernetes.default: is service domain name by k8s auto create on default namespace
 	$log->info("...........create TLS for Kubernetes API Server...........");
-	invoke_local_command("cfssl gencert -ca=$k8s_ca_dir/ca.pem -ca-key=$k8s_ca_dir/ca-key.pem -config=$pki_dir/ca-config.json -hostname=$cluster_ip,$kube_api_ip,127.0.0.1,kubernetes.default -profile=kubernetes $pki_dir/apiserver-csr.json | cfssljson -bare $k8s_ca_dir/apiserver");
+	my $cluster_ip_endpoint = build_cluster_endpoint($service_cluster_ip);
+	invoke_local_command("cfssl gencert -ca=$k8s_ca_dir/ca.pem -ca-key=$k8s_ca_dir/ca-key.pem -config=$pki_dir/ca-config.json -hostname=$cluster_ip_endpoint,$kube_api_ip,127.0.0.1,kubernetes.default -profile=kubernetes $pki_dir/apiserver-csr.json | cfssljson -bare $k8s_ca_dir/apiserver");
 	my @api_server_file = qw(apiserver-key.pem apiserver.pem);
 	check_file(\@api_server_file,$k8s_ca_dir);
 
@@ -672,7 +682,7 @@ sub install_kubernetes{
 }
 
 sub install_component{
-	my ($master_ip_host_hash,$k8s_dir,$etcd_default_port,$haproxy_default_port,$kube_api_ip) = @_;
+	my ($master_ip_host_hash,$k8s_dir,$etcd_default_port,$haproxy_default_port,$kube_api_ip,$service_cluster_ip) = @_;
 	my $if_get_route = 0;
 	my @master_ip_array = keys %$master_ip_host_hash;
 	my @master_host_array = values %$master_ip_host_hash;
@@ -694,10 +704,11 @@ sub install_component{
 
 	#generate Static pod YAML & EncryptionConfig
 	#check generate file /etc/kubernetes/manifests、/etc/kubernetes/encryption、/etc/kubernetes/audit
-	generate_manifests_config($master_ip_host_hash,$k8s_dir,$kube_api_ip,$etcd_default_port,$haproxy_default_port);
+	generate_manifests_config($master_ip_host_hash,$k8s_dir,$kube_api_ip,$etcd_default_port,$haproxy_default_port,$service_cluster_ip);
 	# invoke_local_command("export NODES=\"$master_host_str\";export ADVERTISE_VIP=\"$kube_api_ip\";cd $k8s_manual_files;echo \$ADVERTISE_VIP;echo \$NODES;./hack/gen-manifests.sh");
 	##update /etc/kubernetes/manifests/kube-apiserver.yml set '–insecure-port=8080'
-	invoke_sys_command("perl -pi -e 's/insecure-port=0/insecure-port=8080/gi' /etc/kubernetes/manifests/kube-apiserver.yml",$master_ip_str);
+	# TODO
+	#invoke_sys_command("perl -pi -e 's/insecure-port=0/insecure-port=8080/gi' /etc/kubernetes/manifests/kube-apiserver.yml",$master_ip_str);
 	#config k8s component
 	invoke_sys_command("mkdir -p /var/lib/kubelet /var/log/kubernetes /var/lib/etcd /etc/systemd/system/kubelet.service.d",$master_ip_str);
 	upload_file_to_node("$kubelet_dir/config.yml","/var/lib/kubelet/",0,$master_ip_str);
@@ -775,9 +786,11 @@ sub get_ip_route{
 	my ($master_ip_host_hash,$if_get_route) = @_;
 	while (my ($ip, $host) = each %$master_ip_host_hash) {
 		my $ip_route = invoke_sys_command("ip route get 8.8.8.8",$ip);
+		$log->debug("get_ip_route---->result: $ip_route");
 		$ip_route =~ m/:\s+(.*)/g;
 		my $data = $1 // "";
-		my @router = split(/\s/,$data);
+		$log->debug("get_ip_route----->parse: $data");
+		my @router = split(/\s+/,$data);
 		if($if_get_route){
 			$tmp_host_route_ip->{$master_ip_host_hash->{$ip}} = $router[6];
 		}else{
@@ -825,7 +838,7 @@ sub generate_etcd_haproxy_config{
 }
 
 sub generate_manifests_config{
-	my ($master_ip_host_hash,$k8s_dir,$default_advertise_vip,$etcd_default_port,$haproxy_default_port) = @_;
+	my ($master_ip_host_hash,$k8s_dir,$default_advertise_vip,$etcd_default_port,$haproxy_default_port,$service_cluster_ip) = @_;
 	my $haproxy_port = $haproxy_default_port // 6443;
 	my @master_ip_array = keys %$master_ip_host_hash;
 	#todo etcd_port = 2379
@@ -839,8 +852,10 @@ sub generate_manifests_config{
 		"https:\\\/\\\/$tmp_host_route_ip->{$master_ip_host_hash->{$_}}:$etcd_port"	
 	} @master_ip_array);
 	$log->debug("\$etcd_cluster ==============> $etcd_cluster");
-	my $unicast_peers = join(",", values %$tmp_host_route_ip);
+
+	my $unicast_peers = join(",", map {"\'$_\'"} values %$tmp_host_route_ip);
 	$log->debug("\$unicast_peers ==============> $unicast_peers");
+	
 	my $encrypt_secret = invoke_local_command("openssl rand -hex 16");
 	my @manifests_file_list = qw(etcd.yml haproxy.yml kube-controller-manager.yml kube-scheduler.yml);
 	my $i = 1;
@@ -865,6 +880,10 @@ sub generate_manifests_config{
 	   invoke_local_command("/bin/cp -fn $work_static_dir/manifests/kube-apiserver.yml $tmp_dir/kube-apiserver-$ip.yml");
 	   invoke_local_command("/bin/sed -i \"s/\\\${ADVERTISE_VIP}/$advertise_vip/g\" $tmp_dir/kube-apiserver-$ip.yml");
 	   invoke_local_command("/bin/sed -i \"s/\\\${ETCD_SERVERS}/$etcd_cluster/g\" $tmp_dir/kube-apiserver-$ip.yml");
+	   # ${CLUSTER_IP_RANGE} serviceClusterIP
+	   $service_cluster_ip =~ s#/#\\\/#g;
+	   invoke_local_command("/bin/sed -i \"s/\\\${CLUSTER_IP_RANGE}/$service_cluster_ip/g\" $tmp_dir/kube-apiserver-$ip.yml");
+
 	   upload_file_to_node("$tmp_dir/kube-apiserver-$ip.yml","$manifests_dir/kube-apiserver.yml",0,$ip);
 	   invoke_local_command("rm -rf $tmp_dir/kube-apiserver-$ip.yml");
 
@@ -1212,12 +1231,12 @@ sub start_k8s_cluster{
 	# start all master
 	#$log->info(".... start k8s cluster [master]....");
 	
-	invoke_sys_command("systemctl start kubelet.service",$master_ip_str);
-	#start_tls_bootstrapping($token_id);
+	#invoke_sys_command("systemctl start kubelet.service",$master_ip_str);
+	start_tls_bootstrapping($token_id);
 
 	# start all nodes
 	#$log->info(".... start k8s cluster [node] ....");
-	invoke_sys_command("systemctl start kubelet.service",$node_ip_str);
+	#invoke_sys_command("systemctl start kubelet.service",$node_ip_str);
 
 	# # start kube-proxy
 	# $log->info(".... start k8s cluster [kube-proxy] ....");
