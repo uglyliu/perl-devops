@@ -72,12 +72,12 @@
 ENV["LC_ALL"] = "en_US.UTF-8"
 
 Vagrant.configure("2") do |config|
-    (1..6).each do |i|
+    (1..4).each do |i|
       config.vm.define "k8s#{i}" do |node|
         node.vm.box = "centos"
         node.ssh.insert_key = false
         node.vm.hostname = "k8s#{i}"
-        node.vm.network "private_network", ip: "11.11.11.11#{i}"
+        node.vm.network "private_network", ip: "172.22.132.1#{i}"
 	node.vm.synced_folder "C:\\Users\\Administrator\\Desktop\\perl-devops", "/root/perl-devops"
         node.vm.provision "shell",
           inline: "echo hello from node #{i}"
