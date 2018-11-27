@@ -12,7 +12,7 @@
  Target Server Version : 100004
  File Encoding         : 65001
 
- Date: 27/11/2018 17:26:51
+ Date: 27/11/2018 18:32:22
 */
 
 
@@ -163,67 +163,6 @@ COMMENT ON COLUMN "public"."kube_config"."haproxy_default_port" IS 'haproxy端�
 -- ----------------------------
 INSERT INTO "public"."kube_config" VALUES (1, 'Test', 'v1.11.0', 'v0.7.1', 'v3.3.8', 'v18.05.0-ce', 'Calico-v3.1', '10.244.0.0/16', '10.96.0.0/12', '10.96.0.10', 'cluster.local', '172.22.132.15', '172.22.132.16', 'root', '2222|2200|2201|2202|2203|2204', '172.22.132.1[1-3]', 'k8s', 'k8s', '172.22.132.1[1-3]', '/root', '8090', NULL, 'HaProxy', '    描述                    
                         ', '2018-09-20 17:59:33', 'admin', NULL, NULL, '172.22.132.1[1-3]', '172.22.132.14', '/etc/etcd/ssl', '/etc/kubernetes', 6443, NULL, NULL, 6443);
-
--- ----------------------------
--- Table structure for minion_jobs
--- ----------------------------
-DROP TABLE IF EXISTS "public"."minion_jobs";
-CREATE TABLE "public"."minion_jobs" (
-  "id" int8 NOT NULL DEFAULT nextval('minion_jobs_id_seq'::regclass),
-  "args" jsonb NOT NULL DEFAULT NULL,
-  "created" timestamptz(6) NOT NULL DEFAULT now(),
-  "delayed" timestamptz(6) NOT NULL DEFAULT NULL,
-  "finished" timestamptz(6) DEFAULT NULL,
-  "priority" int4 NOT NULL DEFAULT NULL,
-  "result" jsonb DEFAULT NULL,
-  "retried" timestamptz(6) DEFAULT NULL,
-  "retries" int4 NOT NULL DEFAULT 0,
-  "started" timestamptz(6) DEFAULT NULL,
-  "state" "public"."minion_state" NOT NULL DEFAULT 'inactive'::minion_state,
-  "task" text COLLATE "pg_catalog"."default" NOT NULL DEFAULT NULL,
-  "worker" int8 DEFAULT NULL,
-  "queue" text COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'default'::text,
-  "attempts" int4 NOT NULL DEFAULT 1,
-  "parents" int8[] NOT NULL DEFAULT '{}'::bigint[],
-  "notes" jsonb NOT NULL DEFAULT '{}'::jsonb
-)
-;
-
--- ----------------------------
--- Table structure for minion_locks
--- ----------------------------
-DROP TABLE IF EXISTS "public"."minion_locks";
-CREATE UNLOGGED TABLE "public"."minion_locks" (
-  "id" int8 NOT NULL DEFAULT nextval('minion_locks_id_seq'::regclass),
-  "name" text COLLATE "pg_catalog"."default" NOT NULL DEFAULT NULL,
-  "expires" timestamptz(6) NOT NULL DEFAULT NULL
-)
-;
-
--- ----------------------------
--- Table structure for minion_workers
--- ----------------------------
-DROP TABLE IF EXISTS "public"."minion_workers";
-CREATE TABLE "public"."minion_workers" (
-  "id" int8 NOT NULL DEFAULT nextval('minion_workers_id_seq'::regclass),
-  "host" text COLLATE "pg_catalog"."default" NOT NULL DEFAULT NULL,
-  "pid" int4 NOT NULL DEFAULT NULL,
-  "started" timestamptz(6) NOT NULL DEFAULT now(),
-  "notified" timestamptz(6) NOT NULL DEFAULT now(),
-  "inbox" jsonb NOT NULL DEFAULT '[]'::jsonb,
-  "status" jsonb NOT NULL DEFAULT '{}'::jsonb
-)
-;
-
--- ----------------------------
--- Table structure for mojo_migrations
--- ----------------------------
-DROP TABLE IF EXISTS "public"."mojo_migrations";
-CREATE TABLE "public"."mojo_migrations" (
-  "name" text COLLATE "pg_catalog"."default" NOT NULL DEFAULT NULL,
-  "version" int8 NOT NULL DEFAULT NULL
-)
-;
 
 -- ----------------------------
 -- Table structure for product
@@ -445,70 +384,6 @@ ALTER TABLE "public"."kube_cluster" ADD CONSTRAINT "kube_cluster_pkey" PRIMARY K
 -- Primary Key structure for table kube_config
 -- ----------------------------
 ALTER TABLE "public"."kube_config" ADD CONSTRAINT "kube_config_pkey" PRIMARY KEY ("id");
-
--- ----------------------------
--- Indexes structure for table minion_jobs
--- ----------------------------
-CREATE INDEX "minion_jobs_parents_idx" ON "public"."minion_jobs" USING gin (
-  "parents" "pg_catalog"."array_ops"
-);
-CREATE INDEX "minion_jobs_state_priority_id_idx" ON "public"."minion_jobs" USING btree (
-  "state" "pg_catalog"."enum_ops" ASC NULLS LAST,
-  "priority" "pg_catalog"."int4_ops" DESC NULLS FIRST,
-  "id" "pg_catalog"."int8_ops" ASC NULLS LAST
-);
-
--- ----------------------------
--- Triggers structure for table minion_jobs
--- ----------------------------
-CREATE TRIGGER "minion_jobs_notify_workers_trigger" AFTER INSERT OR UPDATE OF "retries" ON "public"."minion_jobs"
-FOR EACH ROW
-EXECUTE PROCEDURE "public"."minion_jobs_notify_workers"();
-
--- ----------------------------
--- Checks structure for table minion_jobs
--- ----------------------------
-ALTER TABLE "public"."minion_jobs" ADD CONSTRAINT "args" CHECK ((jsonb_typeof(args) = 'array'::text));
-ALTER TABLE "public"."minion_jobs" ADD CONSTRAINT "minion_jobs_notes_check" CHECK ((jsonb_typeof(notes) = 'object'::text));
-
--- ----------------------------
--- Primary Key structure for table minion_jobs
--- ----------------------------
-ALTER TABLE "public"."minion_jobs" ADD CONSTRAINT "minion_jobs_pkey" PRIMARY KEY ("id");
-
--- ----------------------------
--- Indexes structure for table minion_locks
--- ----------------------------
-CREATE INDEX "minion_locks_name_expires_idx" ON "public"."minion_locks" USING btree (
-  "name" COLLATE "pg_catalog"."default" "pg_catalog"."text_ops" ASC NULLS LAST,
-  "expires" "pg_catalog"."timestamptz_ops" ASC NULLS LAST
-);
-
--- ----------------------------
--- Primary Key structure for table minion_locks
--- ----------------------------
-ALTER TABLE "public"."minion_locks" ADD CONSTRAINT "minion_locks_pkey" PRIMARY KEY ("id");
-
--- ----------------------------
--- Checks structure for table minion_workers
--- ----------------------------
-ALTER TABLE "public"."minion_workers" ADD CONSTRAINT "minion_workers_inbox_check" CHECK ((jsonb_typeof(inbox) = 'array'::text));
-ALTER TABLE "public"."minion_workers" ADD CONSTRAINT "minion_workers_status_check" CHECK ((jsonb_typeof(status) = 'object'::text));
-
--- ----------------------------
--- Primary Key structure for table minion_workers
--- ----------------------------
-ALTER TABLE "public"."minion_workers" ADD CONSTRAINT "minion_workers_pkey" PRIMARY KEY ("id");
-
--- ----------------------------
--- Uniques structure for table mojo_migrations
--- ----------------------------
-ALTER TABLE "public"."mojo_migrations" ADD CONSTRAINT "mojo_migrations_name_key" UNIQUE ("name");
-
--- ----------------------------
--- Checks structure for table mojo_migrations
--- ----------------------------
-ALTER TABLE "public"."mojo_migrations" ADD CONSTRAINT "mojo_migrations_version_check" CHECK ((version >= 0));
 
 -- ----------------------------
 -- Primary Key structure for table product
